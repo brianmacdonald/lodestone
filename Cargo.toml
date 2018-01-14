@@ -1,0 +1,5 @@
+[package]
+name = "lodestone"
+version = "0.1.0"
+authors = ["Brian Macdonald <brian@brianmacdonald.org>"]
+
