@@ -24,5 +24,6 @@ pub struct Token {
 
 pub const ILLEGAL: TokenType = TokenType{ name: "ILLEGAL" };
 pub const UNDERSCORE: TokenType = TokenType{ name: "UNDERSCORE" };
+pub const LET: TokenType = TokenType{ name: "LET" };
 
 

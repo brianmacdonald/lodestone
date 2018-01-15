@@ -2,7 +2,7 @@ use super::token;
 
 struct Lexer {
     input: String,
-    position:     u16,
+    position: u16,
     read_position: u16,
     ch: char
 }
@@ -74,24 +74,32 @@ fn new_token (token_type: token::TokenType, ch: char) -> token::Token {
 }
 
 
+fn is_letter(ch: char) -> bool {
+    return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_';
+}
+
+fn is_digit(ch: char) -> bool {
+    return '0' <= ch && ch <= '9';
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;    
 
     #[test]
-    fn lexer_sets_input() {
+    fn test_lexer_sets_input() {
         let lex = Lexer::new(String::from("foobar"));
         assert_eq!(lex.input, String::from("foobar"));
     }
  
     #[test]
-    fn lexer_sets_char() {
+    fn test_lexer_sets_char() {
         let lex = Lexer::new(String::from("foobar"));
         assert_eq!(lex.ch, 'f');
     }
 
     #[test]
-    fn next_token() {
+    fn test_next_token() {
         let mut lex = Lexer::new(String::from("fn _call"));
         assert_eq!(lex.next_token().t_type, token::ILLEGAL);
         lex.read_char();
@@ -103,15 +111,43 @@ mod tests {
     }
 
     #[test]
-    fn peek_char() {
+    fn test_peek_char() {
         let mut lex = Lexer::new(String::from("fn _call"));
         assert_eq!(lex.peek_char(), 'n');
     }
    
     #[test]
-    fn read_char() {
-        let mut lex = Lexer::new(String::from("\"_call"));
-        assert_eq!(lex.read_string(), String::from("_call"));
+    fn test_read_char() {
+        let mut lex = Lexer::new(String::from("\"_call\";"));
+        assert_eq!(lex.read_string(), String::from("_call\""));
+    }
+
+    #[test]
+    fn test_is_letter() {
+        assert!(is_letter('a'));
+        assert!(is_letter('M'));
+        assert!(is_letter('_'));
+        assert!(!is_letter('%'));
+    }
+
+
+    #[test]
+    fn test_is_digit() {
+        assert!(is_digit('1'));
+    }
+
+    #[test]
+    fn test_is_not_digit() {
+        assert!(!is_digit('a'));
+    }
+
+    fn test_next_tokens() {
+        let input = "
+           let five := 5;
+        ";
+        let mut lex = Lexer::new(String::from(input));
+        let tok = lex.next_token();
+        assert_eq!(tok.t_type, token::LET);
     }
 
 }
