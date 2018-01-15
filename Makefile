@@ -20,3 +20,6 @@ run:
 
 test:
 	$(Q)$(CARGO) test
+
+watch-tests:
+	$(Q)watch -n 5 $(CARGO) test
