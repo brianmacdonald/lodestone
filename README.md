@@ -7,4 +7,4 @@ New language written in Rust.
 
 ## Test:
  - `make test`
-
+ - Note: Tests can also be run continuously: `make watch-tests`
