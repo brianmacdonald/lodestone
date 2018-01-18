@@ -140,14 +140,20 @@ mod tests {
     fn test_is_not_digit() {
         assert!(!is_digit('a'));
     }
-
+ 
     fn test_next_tokens() {
         let input = "
            let five := 5;
         ";
+        let expected = [
+            (token::LET, "let")       
+        ];
         let mut lex = Lexer::new(String::from(input));
-        let tok = lex.next_token();
-        assert_eq!(tok.t_type, token::LET);
+        for output in expected.into_iter() {
+            let tok = lex.next_token();
+            assert_eq!(tok.t_type, output.0);
+            assert_eq!(tok.literal, output.1);
+        }
     }
 
 }
