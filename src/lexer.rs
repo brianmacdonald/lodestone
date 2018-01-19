@@ -27,7 +27,7 @@ impl Lexer {
 
 
     fn next_token(&mut self) -> token::Token {
-        let mut tok: token::Token;
+        let tok: token::Token;
         self.skip_whitespace();
         match self.ch {
             '_' => {
@@ -55,7 +55,7 @@ impl Lexer {
     }
 
     fn read_string(&mut self) -> String {
-        let mut position = self.position + 1;
+        let position = self.position + 1;
         let mut done = false;
         while !done {
             self.read_char();
