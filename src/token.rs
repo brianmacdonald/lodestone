@@ -29,7 +29,9 @@ pub const ILLEGAL: TokenType = TokenType{ name: "ILLEGAL" };
 pub const EOF: TokenType = TokenType{ name: "EOF" };
 pub const IDENT: TokenType = TokenType{ name: "IDENT" };
 pub const UNDERSCORE: TokenType = TokenType{ name: "UNDERSCORE" };
-pub const FUN: TokenType = TokenType{ name: "FUN" };
+// Keywords 
+pub const FUNCTION: TokenType = TokenType{ name: "FUNCTION" };
+pub const IMPORT: TokenType = TokenType{ name: "IMPORT"    };
 pub const LET: TokenType = TokenType{ name: "LET" };
 pub const WHILE: TokenType = TokenType{ name: "WHILE" };
 pub const TRUE: TokenType = TokenType{ name: "TRUE" };
@@ -37,10 +39,38 @@ pub const FALSE: TokenType = TokenType{ name: "FALSE" };
 pub const IF: TokenType = TokenType{ name: "IF" };
 pub const ELSE: TokenType = TokenType{ name: "ELSE" };
 pub const RETURN: TokenType = TokenType{ name: "RETURN" };
+// Operators 
+pub const ASSIGN: TokenType = TokenType{ name: ":=" };
+pub const REASSIGN: TokenType = TokenType{ name: "=" };
+pub const COLON: TokenType = TokenType{ name: ":" };
+pub const PLUS: TokenType = TokenType{ name: "+" };
+pub const MINUS: TokenType = TokenType{ name: "-" };
+pub const BANG: TokenType = TokenType{ name: "!" };
+pub const ASTERISK: TokenType = TokenType{ name: "*" };
+pub const SLASH: TokenType = TokenType{ name: "/" };
+pub const MODULO: TokenType = TokenType{ name: "%" };
+pub const LT: TokenType = TokenType{ name: "<" };
+pub const GT: TokenType = TokenType{ name: ">" };
+pub const EQ: TokenType = TokenType{ name: "==" };
+pub const NOT_EQ: TokenType = TokenType{ name: "!=" };
+// Delimiters 
+pub const COMMA: TokenType = TokenType{ name: "," };
+pub const SEMICOLON: TokenType = TokenType{ name: ";" };
+pub const LPAREN: TokenType = TokenType{ name: "(" };
+pub const RPAREN: TokenType = TokenType{ name: ")" };
+pub const LBRACE: TokenType = TokenType{ name: "{" };
+pub const RBRACE: TokenType = TokenType{ name: "}" };
+pub const LBRACKET: TokenType = TokenType{ name: "[" };
+pub const RBRACKET: TokenType = TokenType{ name: "]" };
+// Slots
+pub const SLOT: TokenType = TokenType{ name: "." };
+// Types
+pub const STRING: TokenType = TokenType{ name: "STRING" };
+pub const INT: TokenType = TokenType{ name: "INT" };
 
 pub fn keywords(key: String) -> Option<TokenType> {
     let mut kw_map = HashMap::new();
-    kw_map.insert(String::from("fun"), FUN);
+    kw_map.insert(String::from("fun"), FUNCTION);
     kw_map.insert(String::from("let"), LET);
     kw_map.insert(String::from("while"), WHILE);
     kw_map.insert(String::from("true"), TRUE);
