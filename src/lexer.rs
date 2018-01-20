@@ -20,15 +20,17 @@ impl Lexer {
             self.ch = 0 as char;
         } else {
             self.ch = self.input.chars().nth(self.read_position as usize).unwrap() as char;
-            println!("{}", self.ch);
         }
         self.position = self.read_position;
         self.read_position += 1;
+        println!("p: {}, rp: {}, ch: {}", self.position, self.read_position, self.ch);
     }    
 
     fn next_token(&mut self) -> token::Token {
         let tok: token::Token;
+        println!("about to test bws: {}", self.ch);
         self.skip_whitespace();
+        println!("abount to test: {}", self.ch);
         match self.ch {
             ':' => {
                 if self.peek_char() == '=' {
@@ -41,16 +43,91 @@ impl Lexer {
                     tok = new_token(token::COLON, self.ch);
                 }
             },
+            '!' => {
+                if self.peek_char() == '=' {
+                    let ch = self.ch;
+                    self.read_char();
+                    let mut l_literal = String::from(ch.to_string());
+                    l_literal.push(self.ch);
+                    tok = token::Token { t_type: token::NOT_EQ, literal: l_literal };
+                } else {
+                    tok = new_token(token::BANG, self.ch);
+                }
+            },
+            '=' => {
+                if self.peek_char() == '=' {
+                    let ch = self.ch;
+                    self.read_char();
+                    let mut l_literal = String::from(ch.to_string());
+                    l_literal.push(self.ch);
+                    tok = token::Token { t_type: token::EQ, literal: l_literal };
+                } else {
+                    tok = new_token(token::REASSIGN, self.ch);
+                }
+            },
+            '-' => {
+                tok = new_token(token::MINUS, self.ch);
+            },
             '_' => {
                tok = new_token(token::UNDERSCORE, self.ch);
+            },
+            '/' => {
+                 tok = new_token(token::SLASH, self.ch)
+            },
+            '*' => {                                                                                                 
+               tok = new_token(token::ASTERISK, self.ch);                                                                 
+            },
+            '<' => {                                                                                                 
+               tok = new_token(token::LT, self.ch);                                                                       
+            },
+            '>' => {                                                                                                 
+               tok = new_token(token::GT, self.ch);                                                                       
+            },
+            ';' => {                                                                                                 
+               tok = new_token(token::SEMICOLON, self.ch);                                                                
+            },
+            '(' => {                                                                                                 
+               tok = new_token(token::LPAREN, self.ch);                                                                   
+            },
+            ')' => {                                                                                                 
+               tok = new_token(token::RPAREN, self.ch);                                                                   
+            },
+            ',' => {                                                                                                 
+               tok = new_token(token::COMMA, self.ch);                                                                    
+            },
+            '+' => {                                                                                                 
+               tok = new_token(token::PLUS, self.ch);                                                                     
+            },
+            '{' => {                                                                                                 
+               tok = new_token(token::LBRACE, self.ch);                                                                   
+            },
+            '}' => {                                                                                                 
+               tok = new_token(token::RBRACE, self.ch);                                                                   
+            },
+            '.' => {                                                                                                 
+               tok = new_token(token::SLOT, self.ch);                                                                     
+            },
+            '%' => {                                                                                                 
+               tok = new_token(token::MODULO, self.ch);                                                                   
+            },
+            '[' => {
+                tok = new_token(token::LBRACKET, self.ch);
+            },
+            ']' => {
+                tok = new_token(token::RBRACKET, self.ch);
+            },
+            '"' => {
+                tok = token::Token { t_type: token::STRING, literal: self.read_string()  };
             },
             _ => {
                 if is_letter(self.ch) {
                     let l_literal = self.read_identifier();
                     let l_t_type = token::lookup_ident(l_literal.clone());
                     tok = token::Token { t_type: l_t_type, literal: l_literal }; 
+                    return tok;
                 } else if is_digit(self.ch) {
                     tok = token::Token { t_type: token::INT, literal:self.read_number() };
+                    return tok;
                 } else if self.ch == 0 as char {
                     tok = new_token(token::EOF, self.ch);
                 } else {
@@ -58,6 +135,7 @@ impl Lexer {
                 }
             } 
         }
+        println!("{}", tok.literal);
 	    self.read_char();
         tok
     }
@@ -138,7 +216,6 @@ fn is_digit(ch: char) -> bool {
     return '0' <= ch && ch <= '9';
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;    
@@ -157,20 +234,22 @@ mod tests {
 
     #[test]
     fn test_next_token() {
-        let mut lex = Lexer::new(String::from("fn _call"));
+        let mut lex = Lexer::new(String::from("fn _call: foobar;"));
         assert_eq!(lex.next_token().t_type, token::IDENT);
         assert_eq!(lex.next_token().t_type, token::UNDERSCORE);
-        assert_eq!(lex.next_token().t_type, token::IDENT);
+        assert_eq!(lex.next_token().literal, String::from("call"));
+        assert_eq!(lex.next_token().literal, String::from(":"));
     }
 
     #[test]
     fn test_skip_whitespace() {
-        let input = " _call";
+        let input = " ;_call";
         let mut lex = Lexer::new(String::from(input));
         lex.skip_whitespace();
-        assert_eq!(lex.ch, '_');
+        assert_eq!(lex.ch, ';');
     }
 
+    #[test]
     fn test_skip_whitespace_newline() {
         let input = "
             _call
@@ -200,6 +279,7 @@ mod tests {
         assert!(!is_letter(' '));
         assert!(!is_letter('\n'));
         assert!(!is_letter('%'));
+        assert!(!is_letter(';'));
     }
 
     #[test]
@@ -211,19 +291,159 @@ mod tests {
     fn test_is_not_digit() {
         assert!(!is_digit('a'));
     }
- 
+
     #[test]
     fn test_next_tokens() {
-        let input = "
-            let five := 5; 
-        ";
+        let eof = 0 as char;
+        let input = r#"
+let five := 5;
+let ten := 10;
+let add := fun(x, y) {
+	x + y;
+};
+let result := add(five, ten);
+!-/*5;
+
+five: ten;
+five = ten;
+
+5 < 10 > 5;
+if (5 < 10) {
+   return true;
+} else {
+   return false;
+}
+
+10 == 10;
+10 != 9;
+
+10 % 3;
+
+"foobar"
+"foo bar"
+
+while (true) {
+	"spam eggs"
+}
+
+[1, 2];
+
+import "/path/";
+
+five.add := add;
+        "#;
         let expected = [
             (token::LET, "let"),
             (token::IDENT, "five"),
             (token::ASSIGN, ":="),
             (token::INT, "5"),
+            (token::SEMICOLON, ";" ),
+            (token::LET, "let" ),
+            (token::IDENT, "ten" ),
+            (token::ASSIGN, ":=" ),
+            (token::INT, "10" ),
+            (token::SEMICOLON, ";" ),
+            (token::LET, "let" ),
+            (token::IDENT, "add" ),
+            (token::ASSIGN, ":=" ),
+            (token::FUNCTION, "fun" ),
+            (token::LPAREN, "(" ),
+            (token::IDENT, "x" ),
+            (token::COMMA, "," ),
+            (token::IDENT, "y" ),
+            (token::RPAREN, ")" ),
+            (token::LBRACE, "{" ),
+            (token::IDENT, "x" ),
+            (token::PLUS, "+" ),
+            (token::IDENT, "y" ),
+            (token::SEMICOLON, ";" ),
+            (token::RBRACE, "}" ),
+            (token::SEMICOLON, ";" ),
+            (token::LET, "let" ),
+            (token::IDENT, "result" ),
+            (token::ASSIGN, ":=" ),
+            (token::IDENT, "add" ),
+            (token::LPAREN, "(" ),
+            (token::IDENT, "five" ),
+            (token::COMMA, "," ),
+            (token::IDENT, "ten" ),
+            (token::RPAREN, ")" ),
+            (token::SEMICOLON, ";" ),
+            (token::BANG, "!" ),
+            (token::MINUS, "-" ),
+            (token::SLASH, "/" ),
+            (token::ASTERISK, "*" ),
+            (token::INT, "5" ),
+            (token::SEMICOLON, ";" ),
+            (token::IDENT, "five" ),
+            (token::COLON, ":" ),
+            (token::IDENT, "ten" ),
+            (token::SEMICOLON, ";" ),
+            (token::IDENT, "five" ),
+            (token::REASSIGN, "=" ),
+            (token::IDENT, "ten" ),
+            (token::SEMICOLON, ";" ),
+            (token::INT, "5" ),
+            (token::LT, "<" ),
+            (token::INT, "10" ),
+            (token::GT, ">" ),
+            (token::INT, "5" ),
+            (token::SEMICOLON, ";" ),
+            (token::IF, "if" ),
+            (token::LPAREN, "(" ),
+            (token::INT, "5" ),
+            (token::LT, "<" ),
+            (token::INT, "10" ),
+            (token::RPAREN, ")" ),
+            (token::LBRACE, "{" ),
+            (token::RETURN, "return" ),
+            (token::TRUE, "true" ),
+            (token::SEMICOLON, ";" ),
+            (token::RBRACE, "}" ),
+            (token::ELSE, "else" ),
+            (token::LBRACE, "{" ),
+            (token::RETURN, "return" ),
+            (token::FALSE, "false" ),
+            (token::SEMICOLON, ";" ),
+            (token::RBRACE, "}" ),
+            (token::INT, "10" ),
+            (token::EQ, "==" ),
+            (token::INT, "10" ),
+            (token::SEMICOLON, ";" ),
+            (token::INT, "10" ),
+            (token::NOT_EQ, "!=" ),
+            (token::INT, "9" ),
+            (token::SEMICOLON, ";" ),
+            (token::INT, "10" ),
+            (token::MODULO, "%" ),
+            (token::INT, "3" ),
+            (token::SEMICOLON, ";" ),
+            (token::STRING, "foobar" ),
+            (token::STRING, "foo bar" ),
+            (token::WHILE, "while" ),
+            (token::LPAREN, "(" ),
+            (token::TRUE, "true" ),
+            (token::RPAREN, ")" ),
+            (token::LBRACE, "{" ),
+            (token::STRING, "spam eggs" ),
+            (token::RBRACE, "}" ),
+            (token::LBRACKET, "[" ),
+            (token::INT, "1" ),
+            (token::COMMA, "," ),
+            (token::INT, "2" ),
+            (token::RBRACKET, "]" ),
+            (token::SEMICOLON, ";" ),
+            (token::IMPORT, "import" ),
+            (token::STRING, "/path/" ),
+            (token::SEMICOLON, ";" ),
+            (token::IDENT, "five" ),
+            (token::SLOT, "." ),
+            (token::IDENT, "add" ),
+            (token::ASSIGN, ":=" ),
+            (token::IDENT, "add" ),
+            (token::SEMICOLON, ";" ),
+            (token::EOF, &eof.to_string()),
         ];
-        println!("{}", input);
         let mut lex = Lexer::new(String::from(input));
         for output in expected.into_iter() {
             let tok = lex.next_token();

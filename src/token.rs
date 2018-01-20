@@ -76,8 +76,9 @@ pub fn keywords(key: String) -> Option<TokenType> {
     kw_map.insert(String::from("true"), TRUE);
     kw_map.insert(String::from("false"), FALSE);
     kw_map.insert(String::from("if"), IF);
-    kw_map.insert(String::from("ELSE"), ELSE);
-    kw_map.insert(String::from("RETURN"), RETURN);
+    kw_map.insert(String::from("else"), ELSE);
+    kw_map.insert(String::from("return"), RETURN);
+    kw_map.insert(String::from("import"), IMPORT);
     kw_map.get(&key).cloned()
 }
 
