@@ -15,15 +15,8 @@ trait Statement: Node {
     fn statementNode(&mut self);
 }
 
-struct Expression {
-
-}
-
-impl Expression {
+trait Expression: Node {
     fn expression_node(&mut self) {}
-    fn string(&mut self) -> String {
-        return String::from("");
-    }
 }
 
 struct Program {
@@ -49,7 +42,7 @@ impl Node for Program {
 struct LetStatement {
     token: token::Token,
     name: Identifier,
-    value: Option<Expression>
+    value: Option<Box<Expression>>
 }
 
 impl Node for LetStatement {
@@ -81,8 +74,11 @@ struct Identifier {
     value: String
 }
 
-impl Identifier {
-    fn expressionNode() {}
+impl Expression for Identifier {
+    fn expression_node(&mut self) {}
+}
+
+impl Node for Identifier {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -93,7 +89,7 @@ impl Identifier {
 
 struct ReturnStatement {
     token: token::Token,
-    return_value: Option<Expression>
+    return_value: Option<Box<Expression>>
 }
 
 impl ReturnStatement {
@@ -168,7 +164,7 @@ impl PrefixExpression {
 
 struct InfixExpression {
     token: token::Token,
-    left: Expression,
+    left: Box<Expression>,
     operator: String,
     right: Expression
 }
@@ -207,7 +203,7 @@ impl Boolean {
 
 struct IfExpression {
     token: token::Token,
-    condition: Expression,
+    condition: Box<Expression>,
     consequence: BlockStatement,
     alternative: Option<BlockStatement>
 }
@@ -279,8 +275,8 @@ impl FunctionLiteral {
 
 struct CallExpression {
     token: token::Token,
-    function: Expression,
-    arguments: Vec<Expression>
+    function: Box<Expression>,
+    arguments: Vec<Box<Expression>>
 }
 
 impl CallExpression {
@@ -318,7 +314,7 @@ impl StringLiteral {
 
 struct WhileLiteral {
     token: token::Token,
-    condition: Expression,
+    condition: Box<Expression>,
     consequence: BlockStatement
 }
 
@@ -340,7 +336,7 @@ impl WhileLiteral {
 
 struct ArrayLiteral {
     token: token::Token,
-    elements: Vec<Expression>
+    elements: Vec<Box<Expression>>
 }
 
 impl ArrayLiteral {
@@ -362,7 +358,7 @@ impl ArrayLiteral {
 
 struct IndexExpression {
     token: token::Token,
-    left: Expression,
+    left: Box<Expression>,
     index: Expression
 }
 
@@ -390,11 +386,11 @@ mod tests {
     #[test]
     fn test_string() {
         let mut statements = Vec::new();
-        let ident = Identifier {value: String::from("myVar"), token: token::Token { literal: String::from("let"),  t_type: token::LET } };
-        let exp = Some(Expression {});
+        let ident = Identifier {value: String::from("myVarNew"), token: token::Token { literal: String::from("let"),  t_type: token::LET } };
+        let exp = Some(Box::new(Identifier {value: String::from("myVarOld"), token: token::Token { literal: String::from("let"),  t_type: token::LET } }) as Box<Expression>);
         statements.push(Box::new(LetStatement {value: exp, name: ident, token: token::Token { literal: String::from("let"),  t_type: token::LET }}) as Box<Statement>);
         let mut program = Program {statements: statements};
-        assert_eq!(program.string(), "let myVar = ");
+        assert_eq!(program.string(), "let myVarNew = myVarOld");
     }
 
 }
