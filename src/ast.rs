@@ -7,12 +7,8 @@ trait Node {
     fn string(&mut self) -> String;
 }
 
-trait ParentNode {
-    fn get_node() -> Node;
-}
-
 trait Statement: Node {
-    fn statementNode(&mut self);
+    fn statement_node(&mut self);
 }
 
 trait Expression: Node {
@@ -66,7 +62,7 @@ impl Node for LetStatement {
 }
 
 impl Statement for LetStatement {
-    fn statementNode(&mut self) {}
+    fn statement_node(&mut self) {}
 }
 
 struct Identifier {
@@ -92,8 +88,11 @@ struct ReturnStatement {
     return_value: Option<Box<Expression>>
 }
 
-impl ReturnStatement {
-    fn statement_node() {}
+impl Statement for ReturnStatement {
+    fn statement_node(&mut self) {}
+}
+
+impl Node for ReturnStatement {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -117,8 +116,11 @@ struct ExpressionStatement {
     expression: Expression
 }
 
-impl ExpressionStatement {
-    fn statement_node() {}
+impl Statement for ExpressionStatement {
+    fn statement_node(&mut self) {}
+}
+
+impl Node for ExpressionStatement {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -132,8 +134,11 @@ struct IntegerLiteral {
     return_value: Expression
 }
 
-impl IntegerLiteral {
-    fn statement_node() {}
+impl Statement for IntegerLiteral {
+    fn statement_node(&mut self) {}
+}
+
+impl Node for IntegerLiteral {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -148,8 +153,11 @@ struct PrefixExpression {
     right: Expression
 }
 
-impl PrefixExpression {
-    fn expressionNode() {}
+impl Expression for PrefixExpression {
+    fn expression_node(&mut self) {}
+}
+
+impl Node for PrefixExpression {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -169,8 +177,11 @@ struct InfixExpression {
     right: Expression
 }
 
-impl InfixExpression {
-    fn expression_node() {}
+impl Expression for InfixExpression {
+    fn expression_node(&mut self) {}
+}
+
+impl Node for InfixExpression {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -191,8 +202,11 @@ struct Boolean {
     value: bool
 }
 
-impl Boolean {
-    fn statement_node() {}
+impl Statement for Boolean {
+    fn statement_node(&mut self) {}
+}
+
+impl Node for Boolean {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -208,8 +222,11 @@ struct IfExpression {
     alternative: Option<BlockStatement>
 }
 
-impl IfExpression {
-    fn statement_node() {}
+impl Statement for IfExpression {
+    fn statement_node(&mut self) {}
+}
+
+impl Node for IfExpression {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -235,8 +252,11 @@ struct BlockStatement {
     statements: Vec<Box<Statement>>
 }
 
-impl BlockStatement {
-    fn statement_node() {}
+impl Statement for BlockStatement {
+    fn statement_node(&mut self) {}
+}
+
+impl Node for BlockStatement {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -255,8 +275,11 @@ struct FunctionLiteral {
     body: BlockStatement
 }
 
-impl FunctionLiteral {
-    fn expression_node() {}
+impl Expression for FunctionLiteral {
+    fn expression_node(&mut self) {}
+}
+
+impl Node for FunctionLiteral {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -279,8 +302,11 @@ struct CallExpression {
     arguments: Vec<Box<Expression>>
 }
 
-impl CallExpression {
-    fn expression_node() {}
+impl Expression for CallExpression {
+    fn expression_node(&mut self) {}
+}
+
+impl Node for CallExpression {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -302,8 +328,11 @@ struct StringLiteral {
     value: String
 }
 
-impl StringLiteral {
-    fn expression_node() {}
+impl Expression for StringLiteral {
+    fn expression_node(&mut self) {}
+}
+
+impl Node for StringLiteral {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -318,8 +347,11 @@ struct WhileLiteral {
     consequence: BlockStatement
 }
 
-impl WhileLiteral {
-    fn expression_node() {}
+impl Expression for WhileLiteral {
+    fn expression_node(&mut self) {}
+}
+
+impl Node for WhileLiteral {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -339,8 +371,11 @@ struct ArrayLiteral {
     elements: Vec<Box<Expression>>
 }
 
-impl ArrayLiteral {
-    fn expression_node() {}
+impl Expression for ArrayLiteral {
+    fn expression_node(&mut self) {}
+}
+
+impl Node for ArrayLiteral {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
@@ -362,8 +397,11 @@ struct IndexExpression {
     index: Expression
 }
 
-impl IndexExpression {
-    fn expression_node() {}
+impl Expression for IndexExpression {
+    fn expression_node(&mut self) {}
+}
+
+impl Node for IndexExpression {
     fn token_literal(&mut self) -> String {
         self.token.literal.clone()
     }
