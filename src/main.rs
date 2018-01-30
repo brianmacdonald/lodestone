@@ -2,9 +2,9 @@
 mod repl;
 mod lexer;
 mod token;
+mod ast;
 
 fn main() {
     println!("Welcome to Lodestone:");
     repl::repl();
 }
-
