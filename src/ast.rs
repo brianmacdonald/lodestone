@@ -131,7 +131,7 @@ impl Node for ExpressionStatement {
 
 struct IntegerLiteral {
     token: token::Token,
-    return_value: Expression
+    value: u16
 }
 
 impl Statement for IntegerLiteral {
