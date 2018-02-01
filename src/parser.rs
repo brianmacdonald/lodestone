@@ -284,8 +284,89 @@ impl Parser {
     }
 
     fn parse_call_expression(&mut self, func: ast::Expression) -> Option<Box<Expression>> {
-        let args = self.parseExpressionList(token::RPARAM);
+        let args = self.parse_expression_list(token::RPARAM);
         Some(Box::new(ast::CallExpression { token: self.cur_token, function, function, arguments: args }))
+    }
+
+    fn parse_call_arguments(&mut self) -> Option<Vec<Option<Box<Expression>>>> {
+        let args = Vec::new();
+        if self.peek_token_is(token::RPAREN) {
+            self.next_token();
+            return args;
+        }
+        self.next_token();
+        args.push(self.parse_expression(LOWEST));
+        while self.peek_token_is(token::COMMA) {
+            self.next_token();
+            self.next_token();
+            args.push(self.parse_expression(LOWEST));
+        }
+        if !self.expect_peek(token::RPAREN) {
+            return None
+        }
+        Some(args)
+    }
+
+    fn parse_string_literal() Option<Box<Expression>> {
+        Some(Box::new(ast::StringLiteral { token: self.cur_token.clone(), value: self.cur_token.literal.clone() }))
+    }
+
+    fn parse_while_literal(&mut self) -> Option<Box<Expression>> {
+        let cur_token = p.cur_token.clone();
+        if !self.expect_peek(token::RPAREN) {
+            return None;
+        }
+        if !self.expect_peek(token::LBRACE) {
+            return None;
+        }
+        Some(Box::new(ast::WhileLiteral { token: self.cur_token, consequence: self.parse_block_statement() }))
+    }
+
+    fn parse_import_literal(&mut self) -> Option<Box<Expression>> {
+        let cur_token = self.cur_token.clone();
+        if !self.expect_peek(token::STRING) {
+            return None;
+        }
+        Some(Box::new(ast::ImportLiteral { token: cur_token, path: self.parse_string_literal() }))
+    }
+
+    fn parse_array_literal(&mut self) -> Option<Box<Expression>> {
+        let cur_token = self.cur_token.clone();
+        Some(Box::new(ast::ArrayLiteral { token: cur_token, elements: self.parse_expression_list(token::RBRACKET) }))
+    }
+
+    fn prase_index_expression(&mut self, left: Box<Expression>) -> Option<Box<Expression>> {
+        let cur_token = self.cur_token.clone();
+        let left = left.clone();
+        self.next_token();
+        let index = self.parse_expression(LOWEST);
+        if !self.expect_peek(token::RBRACKET) {
+            return None;
+        }
+        Some(Box::new( ast::IndexExpression { token: cur_token, left: left, index: index } ))
+    }
+
+    fn parse_expression_list(&mut self, end: token::TokenType) Option<Vec<Box<Expression>>> {
+        let mut list = Vec::new();
+        if self.peek_token_is(end) {
+            self.next_token();
+            return Some(list);
+        }
+
+        self.next_token();
+        list.push(self.parse_expression(LOWEST));
+
+        while (self.peek_token_is(token::COMMA)) {
+            self.next_token();
+            self.next_token();
+            list.push(self.parse_expression(LOWEST));
+        }
+
+        if !self.expect_peek(end) {
+            return None;
+        }
+
+        Some(list)
     }
 
 }
