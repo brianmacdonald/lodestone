@@ -16,7 +16,7 @@ const INDEX: u8 = 8;
 
 struct Parser {
     lexer: lexer::Lexer,
-    errors: Vec<String>,
+    pub errors: Vec<String>,
     cur_token: token::Token,
     peek_token: token::Token,
 }
@@ -24,12 +24,14 @@ struct Parser {
 impl Parser {
 
     fn new(lexer: lexer::Lexer) -> Parser {
-        let parser = Parser {
+        let mut parser = Parser {
             lexer: lexer,
             errors: vec![],
             cur_token: token::create_start_token(),
             peek_token: token::create_start_token()
         };
+        parser.next_token();
+        parser.next_token();
         return parser;
     }
 
@@ -462,6 +464,28 @@ impl Parser {
         }
 
         Some(list)
+    }
+
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_let_statement() {
+        let tests = [
+            ("let x := 5;", ("x", 5)),
+            //("let y := true;", ("y", true)),
+            //("let foobar := y;", ("foobar", "y")),
+        ];
+        for test in tests.into_iter() {
+            let lexer = lexer::Lexer::new( String::from(test.0) );
+            let mut p = Parser::new(lexer);
+            let program = p.parse_program();
+            assert_eq!(program.statements.len(), 2);
+        }
     }
 
 }
