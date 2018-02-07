@@ -2,21 +2,21 @@ use std::vec::Vec;
 
 use super::token;
 
-trait Node {
+pub trait Node {
     fn token_literal(&mut self) -> String;
     fn string(&mut self) -> String;
 }
 
-trait Statement: Node {
+pub trait Statement: Node {
     fn statement_node(&mut self);
 }
 
-trait Expression: Node {
+pub trait Expression: Node {
     fn expression_node(&mut self) {}
 }
 
-struct Program {
-    statements: Vec<Box<Statement>>
+pub struct Program {
+    pub statements: Vec<Box<Statement>>
 }
 
 impl Node for Program {
@@ -35,10 +35,10 @@ impl Node for Program {
     }
 }
 
-struct LetStatement {
-    token: token::Token,
-    name: Identifier,
-    value: Option<Box<Expression>>
+pub struct LetStatement {
+    pub token: token::Token,
+    pub name: Identifier,
+    pub value: Option<Box<Expression>>
 }
 
 impl Node for LetStatement {
@@ -65,9 +65,9 @@ impl Statement for LetStatement {
     fn statement_node(&mut self) {}
 }
 
-struct Identifier {
-    token: token::Token,
-    value: String
+pub struct Identifier {
+    pub token: token::Token,
+    pub value: String
 }
 
 impl Expression for Identifier {
@@ -83,9 +83,9 @@ impl Node for Identifier {
     }
 }
 
-struct ReturnStatement {
-    token: token::Token,
-    return_value: Option<Box<Expression>>
+pub struct ReturnStatement {
+    pub token: token::Token,
+    pub return_value: Option<Box<Expression>>
 }
 
 impl Statement for ReturnStatement {
@@ -111,9 +111,9 @@ impl Node for ReturnStatement {
     }
 }
 
-struct ExpressionStatement {
-    token: token::Token,
-    expression: Expression
+pub struct ExpressionStatement {
+    pub token: token::Token,
+    pub expression: Option<Box<Expression>>
 }
 
 impl Statement for ExpressionStatement {
@@ -125,17 +125,25 @@ impl Node for ExpressionStatement {
         self.token.literal.clone()
     }
     fn string(&mut self) -> String {
-        self.expression.string().clone()
+        let ref mut expression = self.expression;
+        match *expression {
+            Some(ref mut x) => {
+                return x.string().clone()
+            },
+            None => {
+                return String::from("");
+            }
+        }
     }
 }
 
-struct IntegerLiteral {
-    token: token::Token,
-    value: u16
+pub struct IntegerLiteral {
+    pub token: token::Token,
+    pub value: u32
 }
 
-impl Statement for IntegerLiteral {
-    fn statement_node(&mut self) {}
+impl Expression for IntegerLiteral {
+    fn expression_node(&mut self) {}
 }
 
 impl Node for IntegerLiteral {
@@ -147,10 +155,10 @@ impl Node for IntegerLiteral {
     }
 }
 
-struct PrefixExpression {
-    token: token::Token,
-    operator: String,
-    right: Expression
+pub struct PrefixExpression {
+    pub token: token::Token,
+    pub operator: String,
+    pub right: Option<Box<Expression>>
 }
 
 impl Expression for PrefixExpression {
@@ -164,17 +172,23 @@ impl Node for PrefixExpression {
     fn string(&mut self) -> String {
         let mut out = String::from("(");
         out.push_str(&self.operator);
-        out.push_str(&self.right.string());
+        let ref mut right = self.right;
+        match *right {
+            Some(ref mut x) => {
+                out.push_str(&x.string());
+            }
+            None => {}
+        }
         out.push_str(")");
         out
     }
 }
 
-struct InfixExpression {
-    token: token::Token,
-    left: Box<Expression>,
-    operator: String,
-    right: Expression
+pub struct InfixExpression {
+    pub token: token::Token,
+    pub left: Option<Box<Expression>>,
+    pub operator: String,
+    pub right: Option<Box<Expression>>
 }
 
 impl Expression for InfixExpression {
@@ -187,23 +201,35 @@ impl Node for InfixExpression {
     }
     fn string(&mut self) -> String {
         let mut out = String::from("(");
-        out.push_str(&self.left.string());
+        let ref mut left_option = self.left;
+        match *left_option {
+            Some(ref mut s) => {
+                out.push_str(&s.string());
+            },
+            _ => {}
+        }
         out.push_str(" ");
         out.push_str(&self.operator);
         out.push_str(" ");
-        out.push_str(&self.right.string());
+        let ref mut right_option = self.right;
+        match *right_option {
+            Some(ref mut s) => {
+                out.push_str(&s.string());
+            },
+            _ => {}
+        }
         out.push_str(")");
         out
     }
 }
 
-struct Boolean {
-    token: token::Token,
-    value: bool
+pub struct Boolean {
+    pub token: token::Token,
+    pub value: bool
 }
 
-impl Statement for Boolean {
-    fn statement_node(&mut self) {}
+impl Expression for Boolean {
+    fn expression_node(&mut self) {}
 }
 
 impl Node for Boolean {
@@ -215,15 +241,15 @@ impl Node for Boolean {
     }
 }
 
-struct IfExpression {
-    token: token::Token,
-    condition: Box<Expression>,
-    consequence: BlockStatement,
-    alternative: Option<BlockStatement>
+pub struct IfExpression {
+    pub token: token::Token,
+    pub condition: Option<Box<Expression>>,
+    pub consequence: Option<BlockStatement>,
+    pub alternative: Option<BlockStatement>
 }
 
-impl Statement for IfExpression {
-    fn statement_node(&mut self) {}
+impl Expression for IfExpression {
+    fn expression_node(&mut self) {}
 }
 
 impl Node for IfExpression {
@@ -232,9 +258,21 @@ impl Node for IfExpression {
     }
     fn string(&mut self) -> String {
         let mut out = String::from("if");
-        out.push_str(&self.condition.string());
+        let ref mut condition = self.condition;
+        match *condition {
+            Some(ref mut c) => {
+                out.push_str(&c.string());
+            },
+            _ => {}
+        }
         out.push_str(" ");
-        out.push_str(&self.consequence.string());
+        let ref mut consequence = self.consequence;
+        match *consequence {
+            Some(ref mut c) => {
+                out.push_str(&c.string());
+            },
+            _ => {}
+        }
         out.push_str(" ");
         match self.alternative {
             Some(ref mut a) => {
@@ -247,9 +285,9 @@ impl Node for IfExpression {
     }
 }
 
-struct BlockStatement {
-    token: token::Token,
-    statements: Vec<Box<Statement>>
+pub struct BlockStatement {
+    pub token: token::Token,
+    pub statements: Vec<Box<Statement>>
 }
 
 impl Statement for BlockStatement {
@@ -262,17 +300,18 @@ impl Node for BlockStatement {
     }
     fn string(&mut self) -> String {
         let mut out = String::from("");
-        for s in &mut self.statements {
+        let ref mut statements = self.statements;
+        for s in statements {
             out.push_str(&s.string());
         }
         out
     }
 }
 
-struct FunctionLiteral {
-    token: token::Token,
-    parameters: Vec<Identifier>,
-    body: BlockStatement
+pub struct FunctionLiteral {
+    pub token: token::Token,
+    pub parameters: Vec<Identifier>,
+    pub body: BlockStatement
 }
 
 impl Expression for FunctionLiteral {
@@ -287,7 +326,8 @@ impl Node for FunctionLiteral {
         let mut out = String::from("");
         out.push_str(&self.token_literal());
         out.push_str("(");
-        for p in &mut self.parameters {
+        let ref mut parameters = self.parameters;
+        for p in parameters {
             out.push_str(&p.string());
         }
         out.push_str(")");
@@ -296,10 +336,10 @@ impl Node for FunctionLiteral {
     }
 }
 
-struct CallExpression {
-    token: token::Token,
-    function: Box<Expression>,
-    arguments: Vec<Box<Expression>>
+pub struct CallExpression {
+    pub token: token::Token,
+    pub function: Box<Expression>,
+    pub arguments: Vec<Box<Expression>>
 }
 
 impl Expression for CallExpression {
@@ -314,7 +354,8 @@ impl Node for CallExpression {
         let mut out = String::from("");
         out.push_str(&self.function.string());
         out.push_str("(");
-        for a in &mut self.arguments {
+        let ref mut args = self.arguments;
+        for a in args {
             out.push_str(", ");
             out.push_str(&a.string());
         }
@@ -323,9 +364,9 @@ impl Node for CallExpression {
     }
 }
 
-struct StringLiteral {
-    token: token::Token,
-    value: String
+pub struct StringLiteral {
+    pub token: token::Token,
+    pub value: String
 }
 
 impl Expression for StringLiteral {
@@ -341,10 +382,10 @@ impl Node for StringLiteral {
     }
 }
 
-struct WhileLiteral {
-    token: token::Token,
-    condition: Box<Expression>,
-    consequence: BlockStatement
+pub struct WhileLiteral {
+    pub token: token::Token,
+    pub condition: Box<Expression>,
+    pub consequence: BlockStatement
 }
 
 impl Expression for WhileLiteral {
@@ -366,9 +407,9 @@ impl Node for WhileLiteral {
     }
 }
 
-struct ArrayLiteral {
-    token: token::Token,
-    elements: Vec<Box<Expression>>
+pub struct ArrayLiteral {
+    pub token: token::Token,
+    pub elements: Vec<Box<Expression>>
 }
 
 impl Expression for ArrayLiteral {
@@ -382,19 +423,21 @@ impl Node for ArrayLiteral {
     fn string(&mut self) -> String {
         let mut out = String::from("");
         out.push_str("[");
-        for e in &mut self.elements {
+        let ref mut elements = self.elements;
+        for e in elements {
+            let ele = e;
             out.push_str(", ");
-            out.push_str(&e.string());
+            out.push_str(&ele.string());
         }
         out.push_str("]");
         out
     }
 }
 
-struct IndexExpression {
-    token: token::Token,
-    left: Box<Expression>,
-    index: Expression
+pub struct IndexExpression {
+    pub token: token::Token,
+    pub left: Box<Expression>,
+    pub index: Option<Box<Expression>>
 }
 
 impl Expression for IndexExpression {
@@ -410,12 +453,17 @@ impl Node for IndexExpression {
         out.push_str("(");
         out.push_str(&self.left.string());
         out.push_str("[");
-        out.push_str(&self.index.string());
+        let ref mut index = self.index;
+        match *index {
+            Some(ref mut i) => {
+                out.push_str(&i.string());
+            }
+            _ => {}
+        }
         out.push_str("])");
         out
     }
 }
-
 
 #[cfg(test)]
 mod tests {
