@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::any::Any;
 
 use super::ast;
 use super::token;
@@ -156,7 +157,7 @@ impl Parser {
             return None;
         }
         let name = ast::Identifier {token: self.cur_token.clone(), value: self.cur_token.clone().literal };
-        if !self.expect_peek(token::IDENT) {
+        if !self.expect_peek(token::ASSIGN) {
             return None;
         }
         self.next_token();
@@ -475,16 +476,24 @@ mod tests {
 
     #[test]
     fn test_let_statement() {
-        let tests = [
-            ("let x := 5;", ("x", 5)),
-            //("let y := true;", ("y", true)),
-            //("let foobar := y;", ("foobar", "y")),
+        let tests = vec![
+            ("let x := 5;", ("x", 5.to_string())),
+            ("let y := true;", ("y", true.to_string())),
+            ("let foobar := y;", ("foobar", String::from("y"))),
         ];
         for test in tests.into_iter() {
             let lexer = lexer::Lexer::new( String::from(test.0) );
             let mut p = Parser::new(lexer);
-            let program = p.parse_program();
-            assert_eq!(program.statements.len(), 2);
+            let mut program = p.parse_program();
+            assert_eq!(program.statements.len(), 1);
+            let ref mut letStmt = program.statements[0];
+            match letStmt.as_any().downcast_ref::<ast::LetStatement>() {
+                Some(stmt) => {
+                    let output = test.1;
+                    assert_eq!(stmt.name.value, output.0);
+                },
+                None => panic!("not a let statement")
+            };
         }
     }
 

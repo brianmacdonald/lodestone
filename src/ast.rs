@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::vec::Vec;
 
 use super::token;
@@ -9,6 +10,7 @@ pub trait Node {
 
 pub trait Statement: Node {
     fn statement_node(&mut self);
+    fn as_any(&self) -> &Any;
 }
 
 pub trait Expression: Node {
@@ -63,6 +65,9 @@ impl Node for LetStatement {
 
 impl Statement for LetStatement {
     fn statement_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 pub struct Identifier {
@@ -90,6 +95,9 @@ pub struct ReturnStatement {
 
 impl Statement for ReturnStatement {
     fn statement_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for ReturnStatement {
@@ -118,6 +126,9 @@ pub struct ExpressionStatement {
 
 impl Statement for ExpressionStatement {
     fn statement_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for ExpressionStatement {
@@ -292,6 +303,9 @@ pub struct BlockStatement {
 
 impl Statement for BlockStatement {
     fn statement_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for BlockStatement {
