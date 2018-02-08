@@ -548,4 +548,24 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_string_literal_expression() {
+        let input = "\"hello world\";";
+        let lexer = lexer::Lexer::new(String::from(input));
+        let mut p = Parser::new(lexer);
+        let mut program = p.parse_program();
+        let ref mut stmt = program.statements[0];
+        match stmt.as_any().downcast_ref::<ast::ExpressionStatement>() {
+            Some(ref mut st) => {
+                match st.expression {
+                    Some(ref expression) => {
+                        expression_test("STRING", &expression, String::from("hello world"));
+                    },
+                    None => panic!("expression not found.")
+                }
+            },
+            None => panic!("not a let statement")
+        }
+    }
+
 }
