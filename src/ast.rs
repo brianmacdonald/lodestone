@@ -15,6 +15,7 @@ pub trait Statement: Node {
 
 pub trait Expression: Node {
     fn expression_node(&mut self) {}
+    fn as_any(&self) -> &Any;
 }
 
 pub struct Program {
@@ -77,6 +78,9 @@ pub struct Identifier {
 
 impl Expression for Identifier {
     fn expression_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for Identifier {
@@ -155,6 +159,9 @@ pub struct IntegerLiteral {
 
 impl Expression for IntegerLiteral {
     fn expression_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for IntegerLiteral {
@@ -174,6 +181,9 @@ pub struct PrefixExpression {
 
 impl Expression for PrefixExpression {
     fn expression_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for PrefixExpression {
@@ -204,6 +214,9 @@ pub struct InfixExpression {
 
 impl Expression for InfixExpression {
     fn expression_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for InfixExpression {
@@ -241,6 +254,9 @@ pub struct Boolean {
 
 impl Expression for Boolean {
     fn expression_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for Boolean {
@@ -261,6 +277,9 @@ pub struct IfExpression {
 
 impl Expression for IfExpression {
     fn expression_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for IfExpression {
@@ -330,6 +349,9 @@ pub struct FunctionLiteral {
 
 impl Expression for FunctionLiteral {
     fn expression_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for FunctionLiteral {
@@ -358,6 +380,9 @@ pub struct CallExpression {
 
 impl Expression for CallExpression {
     fn expression_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for CallExpression {
@@ -385,6 +410,9 @@ pub struct StringLiteral {
 
 impl Expression for StringLiteral {
     fn expression_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for StringLiteral {
@@ -404,6 +432,9 @@ pub struct WhileLiteral {
 
 impl Expression for WhileLiteral {
     fn expression_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for WhileLiteral {
@@ -428,6 +459,9 @@ pub struct ArrayLiteral {
 
 impl Expression for ArrayLiteral {
     fn expression_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for ArrayLiteral {
@@ -456,6 +490,9 @@ pub struct IndexExpression {
 
 impl Expression for IndexExpression {
     fn expression_node(&mut self) {}
+    fn as_any(&self) -> &Any {
+        self
+    }
 }
 
 impl Node for IndexExpression {

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::any::Any;
 
 use super::ast;
 use super::token;
@@ -43,6 +42,9 @@ impl Parser {
             },
             token::MINUS => {
                 return self.parse_prefix_expression();
+            },
+            token::INT => {
+                return self.parser_integer_literal();
             },
             token::IDENT => {
                 return self.parse_identifier();
@@ -221,10 +223,11 @@ impl Parser {
             None => {
                 //let error_token = cur_token.clone();
                 self.no_prefix_parse_fn_error(cur_token.t_type);
+                println!("No prefix!");
                 return None;
             }
         }
-        None
+        self.prefix_parse_call(cur_token.clone())
     }
 
     fn parse_identifier(&mut self) -> Option<Box<ast::Expression>> {
@@ -477,20 +480,64 @@ mod tests {
     #[test]
     fn test_let_statement() {
         let tests = vec![
-            ("let x := 5;", ("x", 5.to_string())),
-            ("let y := true;", ("y", true.to_string())),
-            ("let foobar := y;", ("foobar", String::from("y"))),
+            ("let x := 5;", ("x", 5.to_string(), "INT")),
+            ("let y := true;", ("y", true.to_string(), "BOOL")),
+            ("let foobar := y;", ("foobar", String::from("y"), "IDENT")),
+            ("let foobar := \"spam\";", ("foobar", String::from("spam"), "STRING")),
         ];
         for test in tests.into_iter() {
             let lexer = lexer::Lexer::new( String::from(test.0) );
             let mut p = Parser::new(lexer);
             let mut program = p.parse_program();
             assert_eq!(program.statements.len(), 1);
-            let ref mut letStmt = program.statements[0];
-            match letStmt.as_any().downcast_ref::<ast::LetStatement>() {
-                Some(stmt) => {
+            let ref mut let_stmt = program.statements[0];
+            match let_stmt.as_any().downcast_ref::<ast::LetStatement>() {
+                Some(ref mut stmt) => {
                     let output = test.1;
-                    assert_eq!(stmt.name.value, output.0);
+                    let ref name = stmt.name;
+                    assert_eq!(name.value, output.0);
+                    match stmt.value {
+                        Some(ref v) => {
+                            match output.2 {
+                                "INT" => {
+                                    match v.as_any().downcast_ref::<ast::IntegerLiteral>() {
+                                        Some(il) => {
+                                            assert_eq!(il.value.to_string(), output.1);
+                                        },
+                                        None => panic!("Not a IntegerLiteral.")
+                                    }
+                                },
+                                "BOOL" => {
+                                    match v.as_any().downcast_ref::<ast::Boolean>() {
+                                        Some(il) => {
+                                            assert_eq!(il.value.to_string(), output.1);
+                                        },
+                                        None => panic!("Not a Boolean.")
+                                    }
+                                },
+                                "IDENT" => {
+                                    match v.as_any().downcast_ref::<ast::Identifier>() {
+                                        Some(il) => {
+                                            assert_eq!(il.value.to_string(), output.1);
+                                        },
+                                        None => panic!("Not a Identifier.")
+                                    }
+                                },
+                                "STRING" => {
+                                    match v.as_any().downcast_ref::<ast::StringLiteral>() {
+                                        Some(il) => {
+                                            assert_eq!(il.value.to_string(), output.1);
+                                        },
+                                        None => panic!("Not a StringLiteral.")
+                                    }
+                                },
+                                _ => {
+                                    panic!("Type not found.")
+                                }
+                            }
+                        },
+                        None => panic!("no value found.")
+                    }
                 },
                 None => panic!("not a let statement")
             };
