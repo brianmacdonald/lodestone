@@ -498,49 +498,53 @@ mod tests {
                     assert_eq!(name.value, output.0);
                     match stmt.value {
                         Some(ref v) => {
-                            match output.2 {
-                                "INT" => {
-                                    match v.as_any().downcast_ref::<ast::IntegerLiteral>() {
-                                        Some(il) => {
-                                            assert_eq!(il.value.to_string(), output.1);
-                                        },
-                                        None => panic!("Not a IntegerLiteral.")
-                                    }
-                                },
-                                "BOOL" => {
-                                    match v.as_any().downcast_ref::<ast::Boolean>() {
-                                        Some(il) => {
-                                            assert_eq!(il.value.to_string(), output.1);
-                                        },
-                                        None => panic!("Not a Boolean.")
-                                    }
-                                },
-                                "IDENT" => {
-                                    match v.as_any().downcast_ref::<ast::Identifier>() {
-                                        Some(il) => {
-                                            assert_eq!(il.value.to_string(), output.1);
-                                        },
-                                        None => panic!("Not a Identifier.")
-                                    }
-                                },
-                                "STRING" => {
-                                    match v.as_any().downcast_ref::<ast::StringLiteral>() {
-                                        Some(il) => {
-                                            assert_eq!(il.value.to_string(), output.1);
-                                        },
-                                        None => panic!("Not a StringLiteral.")
-                                    }
-                                },
-                                _ => {
-                                    panic!("Type not found.")
-                                }
-                            }
+                            expression_test(output.2, &v, output.1);
                         },
                         None => panic!("no value found.")
                     }
                 },
                 None => panic!("not a let statement")
             };
+        }
+    }
+
+    fn expression_test(type_t: &str, exp: &Box<ast::Expression>, expected: String) {
+        match type_t {
+            "INT" => {
+                match exp.as_any().downcast_ref::<ast::IntegerLiteral>() {
+                    Some(il) => {
+                        assert_eq!(il.value.to_string(), expected);
+                    },
+                    None => panic!("Not a IntegerLiteral.")
+                }
+            },
+            "BOOL" => {
+                match exp.as_any().downcast_ref::<ast::Boolean>() {
+                    Some(il) => {
+                        assert_eq!(il.value.to_string(), expected);
+                    },
+                    None => panic!("Not a Boolean.")
+                }
+            },
+            "IDENT" => {
+                match exp.as_any().downcast_ref::<ast::Identifier>() {
+                    Some(il) => {
+                        assert_eq!(il.value.to_string(), expected);
+                    },
+                    None => panic!("Not a Identifier.")
+                }
+            },
+            "STRING" => {
+                match exp.as_any().downcast_ref::<ast::StringLiteral>() {
+                    Some(il) => {
+                        assert_eq!(il.value.to_string(), expected);
+                    },
+                    None => panic!("Not a StringLiteral.")
+                }
+            },
+            _ => {
+                panic!("Type not found.")
+            }
         }
     }
 
