@@ -613,6 +613,19 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_return_statements() {
+        let input = "
+            return 5;
+            return 10;
+            return 993322;
+        ";
+        let lexer = lexer::Lexer::new( String::from(input) );
+        let mut p = Parser::new(lexer);
+        let mut program = p.parse_program();
+        assert_eq!(program.statements.len(), 3);
+    }
+
     fn expression_test(type_t: &str, exp: &Box<ast::Expression>, expected: String) {
         match type_t {
             "INT" => {
