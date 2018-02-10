@@ -789,4 +789,21 @@ mod tests {
         }
     }
 
+    fn test_parsePrefixExpressions() {
+        let tests = vec![
+            //("!5;", ("!", 5)),
+    		//("-15;", ("-", 15)),
+    		("!true;", ("!", "true")),
+    		("!false;", ("!", "false")),
+        ];
+        for test in tests {
+            let lexer = lexer::Lexer::new(String::from(test.0));
+            let mut p = Parser::new(lexer);
+            let mut program = p.parse_program();
+            assert_eq!(program.statements.len(), 1);
+            //let expect = test.1;
+            //assert_eq!(program.string(), expect.0);
+        }
+    }
+
 }
