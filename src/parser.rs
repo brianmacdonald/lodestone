@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use ast::Node;
+
 use super::ast;
 use super::token;
 use super::lexer;
@@ -83,13 +85,84 @@ impl Parser {
         }
     }
 
-    fn infix_parse_call(&mut self, token: token::Token) -> Option<Box<ast::Expression>> {
+    fn infix_parse_call(&mut self, token: token::Token, expression: Option<Box<ast::Expression>>) -> Option<Box<ast::Expression>> {
         match token.t_type {
-            token::BANG => {
-                return self.parse_prefix_expression();
+            token::PLUS => {
+                return self.parse_infix_expression(expression);
+            },
+            token::MINUS => {
+                return self.parse_infix_expression(expression);
+            },
+            token::MODULO => {
+                return self.parse_infix_expression(expression);;
+            },
+            token::SLASH => {
+                return self.parse_infix_expression(expression);;
+            },
+            token::ASTERISK => {
+                return self.parse_infix_expression(expression);
+            },
+            token::EQ => {
+                return self.parse_infix_expression(expression);
+            },
+            token::NOT_EQ => {
+                return self.parse_infix_expression(expression);
+            },
+            token::LT => {
+                return self.parse_infix_expression(expression);
+            },
+            token::GT => {
+                return self.parse_infix_expression(expression);
+            },
+            token::LPAREN => {
+                return self.parse_call_expression(expression);
+            },
+            token::LBRACKET => {
+                return self.parse_index_expression(expression);
             },
             _ => {
                 return None;
+            }
+        }
+    }
+
+    fn has_infix(&mut self,  token: token::Token) -> bool {
+        match token.t_type {
+            token::PLUS => {
+                return true;
+            },
+            token::MINUS => {
+                return true;
+            },
+            token::MODULO => {
+                return true;
+            },
+            token::SLASH => {
+                return true;
+            },
+            token::ASTERISK => {
+                return true;
+            },
+            token::EQ => {
+                return true;
+            },
+            token::NOT_EQ => {
+                return true;
+            },
+            token::LT => {
+                return true;
+            },
+            token::GT => {
+                return true;
+            },
+            token::LPAREN => {
+                return true;
+            },
+            token::LBRACKET => {
+                return true;
+            },
+            _ => {
+                return false;
             }
         }
     }
@@ -123,7 +196,7 @@ impl Parser {
                 return self.parse_return_statement();
             },
             _ => {
-                return self.parser_expression_statement();
+                return self.parse_expression_statement();
             }
         }
     }
@@ -180,7 +253,7 @@ impl Parser {
         Some(Box::new(ast::ReturnStatement { token: token, return_value: return_value } ))
     }
 
-    fn parser_expression_statement(&mut self) -> Option<Box<ast::Statement>> {
+    fn parse_expression_statement(&mut self) -> Option<Box<ast::Statement>> {
         let token = self.cur_token.clone();
         let expression = self.parse_expression(LOWEST);
         if self.peek_token_is(token::SEMICOLON) {
@@ -205,20 +278,20 @@ impl Parser {
     fn parse_expression(&mut self, precedence: u8) -> Option<Box<ast::Expression>> {
         let cur_token = self.cur_token.clone();
         let peek_token = self.peek_token.clone();
-        let prefix = self.prefix_parse_call(cur_token.clone());
+        let mut prefix = self.prefix_parse_call(cur_token.clone());
         match prefix {
             Some(p) => {
+                let mut left_exp = Some(p);
                 while !self.peek_token_is(token::SEMICOLON) && precedence < self.peek_precedence() {
-                    let infix = self.infix_parse_call(peek_token);
-                    match infix {
-                        Some(i) => {
-                            return Some(i);
-                        },
-                        None => {}
+                    let peek = self.peek_token.clone();
+                    let infix_check = self.has_infix(peek.clone());
+                    if !infix_check {
+                        return left_exp;
                     }
                     self.next_token();
-                    return infix;
+                    left_exp = self.infix_parse_call(peek, left_exp);
                 }
+                return left_exp;
             },
             None => {
                 //let error_token = cur_token.clone();
@@ -227,7 +300,7 @@ impl Parser {
                 return None;
             }
         }
-        self.prefix_parse_call(cur_token.clone())
+        //self.prefix_parse_call(cur_token.clone())
     }
 
     fn parse_identifier(&mut self) -> Option<Box<ast::Expression>> {
@@ -297,7 +370,7 @@ impl Parser {
     fn parse_grouped_expression(&mut self) -> Option<Box<ast::Expression>> {
         self.next_token();
         let exp = self.parse_expression(LOWEST);
-        if self.expect_peek(token::RPAREN) {
+        if !self.expect_peek(token::RPAREN) {
             return None;
         }
         return exp;
@@ -381,10 +454,24 @@ impl Parser {
         return identifiers;
     }
 
-    fn parse_call_expression(&mut self, func: Box<ast::Expression>) -> Option<Box<ast::Expression>> {
+    fn parse_call_expression(&mut self, func: Option<Box<ast::Expression>>) -> Option<Box<ast::Expression>> {
         let args = self.parse_expression_list(token::RPAREN);
         let cur_token = self.cur_token.clone();
-        Some(Box::new(ast::CallExpression { token: cur_token, function: func, arguments: args.unwrap() }))
+        match func {
+            Some(f) => {
+                match args {
+                    Some(argsUnwrapped) => {
+                        Some(Box::new(ast::CallExpression { token: cur_token, function: f, arguments: argsUnwrapped }))
+                    }
+                    None => {
+                        Some(Box::new(ast::CallExpression { token: cur_token, function: f, arguments: vec![]}))
+                    }
+                }
+            },
+            None => {
+                panic!("not a call expression.")
+            }
+        }
     }
 
     fn parse_call_arguments(&mut self) -> Option<Vec<Option<Box<ast::Expression>>>> {
@@ -468,6 +555,24 @@ impl Parser {
         }
 
         Some(list)
+    }
+
+    fn parse_index_expression(&mut self, left: Option<Box<ast::Expression>>) -> Option<Box<ast::Expression>> {
+        let cur_token = self.cur_token.clone();
+        self.next_token();
+        let index = self.parse_expression(LOWEST);
+
+        if !self.expect_peek(token::RBRACKET) {
+            return None;
+        }
+        match left {
+            Some(l) => {
+                return Some(Box::new(ast::IndexExpression { token: cur_token, left: l, index: index }));
+            },
+            None => {
+                return None;
+            }
+        }
     }
 
 }
@@ -565,6 +670,122 @@ mod tests {
                 }
             },
             None => panic!("not a let statement")
+        }
+    }
+
+    #[test]
+    fn test_operator_precedence_parsing() {
+        let tests = vec![(
+			"-a * b",
+			"((-a) * b)",
+		), (
+			"!-a",
+			"(!(-a))",
+		),
+		(
+			"a + b + c",
+			"((a + b) + c)",
+		),
+		(
+			"a + b - c",
+			"((a + b) - c)",
+		),
+		(
+			"a * b * c",
+			"((a * b) * c)",
+		),
+		(
+			"a * b / c",
+			"((a * b) / c)",
+		),
+		(
+			"a + b / c",
+			"(a + (b / c))",
+		),
+		(
+			"a + b * c + d / e - f",
+			"(((a + (b * c)) + (d / e)) - f)",
+		),
+		(
+			"3 + 4; -5 * 5",
+			"(3 + 4)((-5) * 5)",
+		),
+		(
+			"5 > 4 == 3 < 4",
+			"((5 > 4) == (3 < 4))",
+		), (
+			"5 < 4 != 3 > 4",
+			"((5 < 4) != (3 > 4))",
+		),
+		(
+			"3 + 4 * 5 == 3 * 1 + 4 * 5",
+			"((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+		),
+		(
+			"true",
+			"true",
+		),
+		(
+			"false",
+			"false",
+		),
+		(
+			"3 > 5 == false",
+			"((3 > 5) == false)",
+		),
+		(
+			"3 < 5 == true",
+			"((3 < 5) == true)",
+		),
+		(
+			"1 + (2 + 3) + 4",
+			"((1 + (2 + 3)) + 4)",
+		),
+		(
+			"(5 + 5) * 2",
+			"((5 + 5) * 2)",
+		),
+		(
+			"2 / (5 + 5)",
+			"(2 / (5 + 5))",
+		),
+		(
+			"-(5 + 5)",
+			"(-(5 + 5))",
+		),
+		(
+			"!(true == true)",
+			"(!(true == true))",
+		),
+		(
+			"a + add(b * c) + d",
+			"((a + add((b * c))) + d)",
+		),
+		(
+			"add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+			"add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+		),
+		(
+			"add(a + b + c * d / f + g)",
+			"add((((a + b) + ((c * d) / f)) + g))",
+		),
+		(
+			"add(a + b + c * d / f + g % 5)",
+			"add((((a + b) + ((c * d) / f)) + (g % 5)))",
+		),
+		(
+			"a * [1, 2, 3, 4][b * c] * d",
+			"((a * ([1, 2, 3, 4][(b * c)])) * d)",
+		),
+		(
+			"add(a * b[2], b[1], 2 * [1, 2][1])",
+			"add((a * (b[2])), (b[1]), (2 * ([1, 2][1])))",
+		)];
+        for test in tests {
+            let lexer = lexer::Lexer::new(String::from(test.0));
+            let mut p = Parser::new(lexer);
+            let mut program = p.parse_program();
+            assert_eq!(program.string(), test.1);
         }
     }
 

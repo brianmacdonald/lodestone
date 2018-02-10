@@ -143,7 +143,7 @@ impl Node for ExpressionStatement {
         let ref mut expression = self.expression;
         match *expression {
             Some(ref mut x) => {
-                return x.string().clone()
+                return x.string().clone();
             },
             None => {
                 return String::from("");
@@ -394,10 +394,12 @@ impl Node for CallExpression {
         out.push_str(&self.function.string());
         out.push_str("(");
         let ref mut args = self.arguments;
+        let mut argsVec = vec![];
         for a in args {
-            out.push_str(", ");
-            out.push_str(&a.string());
+            let arg = &a.string();
+            argsVec.push(arg.clone());
         }
+        out.push_str(&argsVec.join(", "));
         out.push_str(")");
         out
     }
@@ -469,14 +471,14 @@ impl Node for ArrayLiteral {
         self.token.literal.clone()
     }
     fn string(&mut self) -> String {
-        let mut out = String::from("");
-        out.push_str("[");
+        let mut out = String::from("[");
         let ref mut elements = self.elements;
+        let mut elesVec = vec![];
         for e in elements {
-            let ele = e;
-            out.push_str(", ");
-            out.push_str(&ele.string());
+            let ele = &e.string();
+            elesVec.push(ele.clone());
         }
+        out.push_str(&elesVec.join(", "));
         out.push_str("]");
         out
     }
