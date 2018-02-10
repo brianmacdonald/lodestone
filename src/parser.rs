@@ -628,7 +628,7 @@ mod tests {
                     Some(il) => {
                         assert_eq!(il.value.to_string(), expected);
                     },
-                    None => panic!("Not a Boolean.")
+                    None => panic!("Not a Boolean: ")
                 }
             },
             "IDENT" => {
@@ -789,20 +789,45 @@ mod tests {
         }
     }
 
+    #[test]
     fn test_parsePrefixExpressions() {
         let tests = vec![
-            //("!5;", ("!", 5)),
-    		//("-15;", ("-", 15)),
-    		("!true;", ("!", "true")),
-    		("!false;", ("!", "false")),
+            ("!5;", ("!", ("INT", 5.to_string()))),
+    		("-15;", ("-", ("INT", 15.to_string()))),
+    		("!true;", ("!", ("BOOL", true.to_string()))),
+    		("!false;", ("!", ("BOOL", false.to_string()))),
         ];
         for test in tests {
             let lexer = lexer::Lexer::new(String::from(test.0));
             let mut p = Parser::new(lexer);
             let mut program = p.parse_program();
             assert_eq!(program.statements.len(), 1);
-            //let expect = test.1;
-            //assert_eq!(program.string(), expect.0);
+            let ref exp_stmt = program.statements[0];
+            match exp_stmt.as_any().downcast_ref::<ast::ExpressionStatement>() {
+                Some(ref mut stmt) => {
+                    let outputs = test.1;
+                    match stmt.expression {
+                        Some(ref e) => {
+                            match e.as_any().downcast_ref::<ast::PrefixExpression>() {
+                                Some(exp) => {
+                                    assert_eq!(exp.operator, outputs.0);
+                                    let output = outputs.1;
+                                    let ref right = exp.right;
+                                    match *right {
+                                        Some(ref r) => {
+                                            expression_test(output.0, &r, String::from(output.1));
+                                        },
+                                        None => panic!("right not found.")
+                                    }
+                                },
+                                None => panic!("not a PrefixExpression")
+                            }
+                        },
+                        None => panic!("no value found.")
+                    }
+                },
+                None => panic!("not a ExpressionStatement")
+            };
         }
     }
 
