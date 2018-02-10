@@ -1,6 +1,6 @@
 use super::token;
 
-struct Lexer {
+pub struct Lexer {
     input: String,
     position: u16,
     read_position: u16,
@@ -8,7 +8,7 @@ struct Lexer {
 }
 
 impl Lexer {
-    fn new(input: String) -> Lexer {
+    pub fn new(input: String) -> Lexer {
         let mut l = Lexer {
             input: input,
             position: 0,
@@ -35,7 +35,7 @@ impl Lexer {
         );
     }
 
-    fn next_token(&mut self) -> token::Token {
+    pub fn next_token(&mut self) -> token::Token {
         let tok: token::Token;
         println!("about to test bws: {}", self.ch);
         self.skip_whitespace();
@@ -158,7 +158,7 @@ impl Lexer {
                 } else {
                     tok = new_token(token::ILLEGAL, self.ch);
                 }
-            } 
+            }
         }
         println!("{}", tok.literal);
         self.read_char();
@@ -250,7 +250,6 @@ fn new_token(token_type: token::TokenType, ch: char) -> token::Token {
 fn is_letter(ch: char) -> bool {
     return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_';
 }
-
 
 fn is_digit(ch: char) -> bool {
     return '0' <= ch && ch <= '9';

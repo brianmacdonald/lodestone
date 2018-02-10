@@ -21,5 +21,8 @@ run:
 test:
 	$(Q)$(CARGO) test
 
+test-bench:
+	$(Q)RUST_BACKTRACE=1 time $(CARGO) test
+
 watch-tests:
 	$(Q)watch -n 5 $(CARGO) test

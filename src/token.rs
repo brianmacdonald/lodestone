@@ -2,16 +2,9 @@
 use std::fmt;
 use std::collections::HashMap;
 
-
-#[derive(Hash, Clone, Eq)]
+#[derive(Hash, Clone, PartialEq, Eq)]
 pub struct TokenType {
     pub name: &'static str,
-}
-
-impl PartialEq for TokenType {
-    fn eq(&self, other: &TokenType) -> bool {
-        self.name == other.name
-    }
 }
 
 impl fmt::Debug for TokenType {
@@ -20,9 +13,14 @@ impl fmt::Debug for TokenType {
     }
 }
 
+#[derive(Hash, Clone)]
 pub struct Token {
     pub t_type: TokenType,
     pub literal: String,
+}
+
+pub fn create_start_token() -> Token {
+    Token { t_type: EOF, literal: String::from("EOF") }
 }
 
 pub const ILLEGAL: TokenType = TokenType { name: "ILLEGAL" };
