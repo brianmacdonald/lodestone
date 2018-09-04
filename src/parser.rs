@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use ast::Node;
-
-use super::ast;
+use super::ast::NodeKind;
+use super::ast::ExpressionKind;
+use super::ast::StatementKind;
 use super::token;
 use super::lexer;
 
@@ -16,7 +16,7 @@ const PREFIX: u8 = 6;
 const CALL: u8 = 7;
 const INDEX: u8 = 8;
 
-struct Parser {
+pub struct Parser {
     lexer: lexer::Lexer,
     pub errors: Vec<String>,
     cur_token: token::Token,
@@ -25,7 +25,7 @@ struct Parser {
 
 impl Parser {
 
-    fn new(lexer: lexer::Lexer) -> Parser {
+    pub fn new(lexer: lexer::Lexer) -> Parser {
         let mut parser = Parser {
             lexer: lexer,
             errors: vec![],
@@ -37,7 +37,7 @@ impl Parser {
         return parser;
     }
 
-    fn prefix_parse_call(&mut self, token: token::Token) -> Option<Box<ast::Expression>> {
+    fn prefix_parse_call(&mut self, token: token::Token) -> Option<Box<ExpressionKind>> {
         match token.t_type {
             token::BANG => {
                 return self.parse_prefix_expression();
@@ -85,7 +85,7 @@ impl Parser {
         }
     }
 
-    fn infix_parse_call(&mut self, token: token::Token, expression: Option<Box<ast::Expression>>) -> Option<Box<ast::Expression>> {
+    fn infix_parse_call(&mut self, token: token::Token, expression: Option<Box<ExpressionKind>>) -> Option<Box<ExpressionKind>> {
         match token.t_type {
             token::PLUS => {
                 return self.parse_infix_expression(expression);
@@ -172,22 +172,22 @@ impl Parser {
         self.peek_token = self.lexer.next_token();
     }
 
-    fn parse_program(&mut self) -> ast::Program {
-        let mut program = ast::Program { statements: Vec::new() };
+    pub fn parse_program(&mut self) -> NodeKind {
+        let mut stmt_vec: Vec<StatementKind> = Vec::new();
         while self.cur_token.t_type != token::EOF {
             let stmt = self.parse_statement();
             match stmt {
                 Some(x) => {
-                    program.statements.push(x);
+                    stmt_vec.push(*x);
                 },
                 None => {}
             }
             self.next_token();
         }
-        program
+        return NodeKind::ProgramNode { statements: stmt_vec };
     }
 
-    fn parse_statement(&mut self) -> Option<Box<ast::Statement>> {
+    fn parse_statement(&mut self) -> Option<Box<StatementKind>> {
         match self.cur_token.t_type {
             token::LET => {
                 return self.parse_let_statement();
@@ -226,12 +226,12 @@ impl Parser {
         }
     }
 
-    fn parse_let_statement(&mut self) -> Option<Box<ast::Statement>> {
+    fn parse_let_statement(&mut self) -> Option<Box<StatementKind>> {
         let token = self.cur_token.clone();
         if !self.expect_peek(token::IDENT) {
             return None;
         }
-        let name = ast::Identifier {token: self.cur_token.clone(), value: self.cur_token.clone().literal };
+        let name = ExpressionKind::Identifier {token: self.cur_token.clone(), value: self.cur_token.clone().literal };
         if !self.expect_peek(token::ASSIGN) {
             return None;
         }
@@ -240,34 +240,35 @@ impl Parser {
         if self.peek_token_is(token::SEMICOLON) {
             self.next_token();
         }
-        Some(Box::new(ast::LetStatement { token: token, name: name, value: value }))
+        Some(Box::new(StatementKind::LetStatement { token: token, name: name, value: value }))
     }
 
-    fn parse_return_statement(&mut self) -> Option<Box<ast::Statement>> {
+    fn parse_return_statement(&mut self) -> Option<Box<StatementKind>> {
         let token = self.cur_token.clone();
         self.next_token();
         let return_value = self.parse_expression(LOWEST);
         if self.peek_token_is(token::SEMICOLON) {
-            self.next_token()
+            self.next_token();
         }
-        Some(Box::new(ast::ReturnStatement { token: token, return_value: return_value } ))
+        let es = StatementKind::ExpressionStatement {token: self.cur_token.clone(), expression: return_value};
+        Some(Box::new(StatementKind::ReturnStatement { token: token, return_value: Some(Box::new(es)) } ))
     }
 
-    fn parse_expression_statement(&mut self) -> Option<Box<ast::Statement>> {
+    fn parse_expression_statement(&mut self) -> Option<Box<StatementKind>> {
         let token = self.cur_token.clone();
         let expression = self.parse_expression(LOWEST);
         if self.peek_token_is(token::SEMICOLON) {
             self.next_token();
         }
-        Some(Box::new(ast::ExpressionStatement { token: token, expression: expression } ))
+        Some(Box::new(StatementKind::ExpressionStatement{ token: token, expression: expression } ))
     }
 
-    fn parse_prefix_expression(&mut self) -> Option<Box<ast::Expression>> {
+    fn parse_prefix_expression(&mut self) -> Option<Box<ExpressionKind>> {
         let token = self.cur_token.clone();
         let operator = self.cur_token.literal.clone();
         self.next_token();
         let right = self.parse_expression(PREFIX);
-        Some(Box::new(ast::PrefixExpression { token: token, operator: operator, right: right}))
+        Some(Box::new(ExpressionKind::PrefixExpression { token: token, operator: operator, right: right}))
     }
 
     fn no_prefix_parse_fn_error(&mut self, t: token::TokenType) {
@@ -275,7 +276,7 @@ impl Parser {
         self.errors.push(msg);
     }
 
-    fn parse_expression(&mut self, precedence: u8) -> Option<Box<ast::Expression>> {
+    fn parse_expression(&mut self, precedence: u8) -> Option<Box<ExpressionKind>> {
         let cur_token = self.cur_token.clone();
         let peek_token = self.peek_token.clone();
         let mut prefix = self.prefix_parse_call(cur_token.clone());
@@ -303,11 +304,11 @@ impl Parser {
         //self.prefix_parse_call(cur_token.clone())
     }
 
-    fn parse_identifier(&mut self) -> Option<Box<ast::Expression>> {
-        Some(Box::new(ast::Identifier { token: self.cur_token.clone(), value: self.cur_token.literal.clone()}))
+    fn parse_identifier(&mut self) -> Option<Box<ExpressionKind>> {
+        Some(Box::new(ExpressionKind::Identifier { token: self.cur_token.clone(), value: self.cur_token.literal.clone()}))
     }
 
-    fn parser_integer_literal(&mut self) -> Option<Box<ast::Expression>> {
+    fn parser_integer_literal(&mut self) -> Option<Box<ExpressionKind>> {
         let cur_token = self.cur_token.clone();
         let wrapped_value = self.cur_token.literal.parse::<u32>();
         if wrapped_value.is_err() {
@@ -316,7 +317,7 @@ impl Parser {
             return None;
         }
         let value = wrapped_value.unwrap();
-        Some(Box::new(ast::IntegerLiteral { token: cur_token, value: value }))
+        Some(Box::new(ExpressionKind::IntegerLiteral { token: cur_token, value: value }))
     }
 
     pub fn precedences(&mut self, key: token::TokenType) -> Option<u8> {
@@ -353,21 +354,21 @@ impl Parser {
         }
     }
 
-    fn parse_infix_expression(&mut self, left: Option<Box<ast::Expression>>) -> Option<Box<ast::Expression>> {
+    fn parse_infix_expression(&mut self, left: Option<Box<ExpressionKind>>) -> Option<Box<ExpressionKind>> {
         let cur_token = self.cur_token.clone();
         let operator = cur_token.literal.clone();
         let precedence = self.cur_precedence();
         self.next_token();
         let right = self.parse_expression(precedence);
-        Some(Box::new(ast::InfixExpression { token: cur_token, operator: operator, left: left, right: right }))
+        Some(Box::new(ExpressionKind::InfixExpression { token: cur_token, operator: operator, left: left, right: right }))
     }
 
-    fn parse_boolean(&mut self) -> Option<Box<ast::Expression>> {
+    fn parse_boolean(&mut self) -> Option<Box<ExpressionKind>> {
         let cur_token = self.cur_token.clone();
-        Some(Box::new(ast::Boolean {token: cur_token, value: self.cur_token_is(token::TRUE)}))
+        Some(Box::new(ExpressionKind::BooleanExpression {token: cur_token, value: self.cur_token_is(token::TRUE)}))
     }
 
-    fn parse_grouped_expression(&mut self) -> Option<Box<ast::Expression>> {
+    fn parse_grouped_expression(&mut self) -> Option<Box<ExpressionKind>> {
         self.next_token();
         let exp = self.parse_expression(LOWEST);
         if !self.expect_peek(token::RPAREN) {
@@ -376,7 +377,7 @@ impl Parser {
         return exp;
     }
 
-    fn parse_if_expression(&mut self) -> Option<Box<ast::Expression>> {
+    fn parse_if_expression(&mut self) -> Option<Box<ExpressionKind>> {
         let cur_token = self.cur_token.clone();
         if !self.expect_peek(token::LPAREN) {
             return None;
@@ -398,10 +399,10 @@ impl Parser {
             }
             alternative = self.parse_block_statement();
         }
-        Some(Box::new(ast::IfExpression { token: cur_token, condition: condition, consequence: consequence, alternative: alternative } ))
+        Some(Box::new(ExpressionKind::IfExpression { token: cur_token, condition: condition, consequence: consequence, alternative: alternative } ))
     }
 
-    fn parse_block_statement(&mut self) -> Option<ast::BlockStatement> {
+    fn parse_block_statement(&mut self) -> Option<Box<StatementKind>> {
         let cur_token = self.cur_token.clone();
         let mut statements = Vec::new();
         self.next_token();
@@ -415,10 +416,10 @@ impl Parser {
             }
             self.next_token();
         }
-        Some(ast::BlockStatement { token: cur_token, statements: statements})
+        Some(Box::new(StatementKind::BlockStatement { token: cur_token, statements: statements}))
     }
 
-    fn parse_function_literal(&mut self) -> Option<Box<ast::Expression>> {
+    fn parse_function_literal(&mut self) -> Option<Box<ExpressionKind>> {
         let cur_token = self.cur_token.clone();
         if !self.expect_peek(token::LPAREN) {
             return None;
@@ -428,10 +429,17 @@ impl Parser {
             return None;
         }
         let body = self.parse_block_statement();
-        Some(Box::new(ast::FunctionLiteral { token: cur_token, parameters: parameters, body: body.unwrap() }))
+        match body {
+            Some(b) => {
+                Some(Box::new(ExpressionKind::FunctionLiteral { token: cur_token, parameters: parameters, body: b }))
+            },
+            _ => {
+                panic!("Required function body");
+            }
+        }
     }
 
-    fn parse_function_parameters(&mut self) -> Vec<ast::Identifier> {
+    fn parse_function_parameters(&mut self) -> Vec<ExpressionKind> {
         let mut identifiers = Vec::new();
         if self.peek_token_is(token::RPAREN) {
             self.next_token();
@@ -439,13 +447,13 @@ impl Parser {
         }
         self.next_token();
         let cur_token = self.cur_token.clone();
-        let mut ident = ast::Identifier { token: cur_token, value: self.cur_token.literal.clone() };
+        let mut ident = ExpressionKind::Identifier{ token: cur_token, value: self.cur_token.literal.clone() };
         identifiers.push(ident);
         while self.peek_token_is(token::COMMA) {
             self.next_token();
             self.next_token();
             let cur_token = self.cur_token.clone();
-            ident = ast::Identifier {token: cur_token, value: self.cur_token.literal.clone() };
+            ident = ExpressionKind::Identifier{token: cur_token, value: self.cur_token.literal.clone() };
             identifiers.push(ident);
         }
         if !self.expect_peek(token::RPAREN) {
@@ -454,17 +462,17 @@ impl Parser {
         return identifiers;
     }
 
-    fn parse_call_expression(&mut self, func: Option<Box<ast::Expression>>) -> Option<Box<ast::Expression>> {
+    fn parse_call_expression(&mut self, func: Option<Box<ExpressionKind>>) -> Option<Box<ExpressionKind>> {
         let args = self.parse_expression_list(token::RPAREN);
         let cur_token = self.cur_token.clone();
         match func {
             Some(f) => {
                 match args {
                     Some(argsUnwrapped) => {
-                        Some(Box::new(ast::CallExpression { token: cur_token, function: f, arguments: argsUnwrapped }))
+                        Some(Box::new(ExpressionKind::CallExpression { token: cur_token, function: f, arguments: argsUnwrapped }))
                     }
                     None => {
-                        Some(Box::new(ast::CallExpression { token: cur_token, function: f, arguments: vec![]}))
+                        Some(Box::new(ExpressionKind::CallExpression { token: cur_token, function: f, arguments: vec![]}))
                     }
                 }
             },
@@ -474,7 +482,7 @@ impl Parser {
         }
     }
 
-    fn parse_call_arguments(&mut self) -> Option<Vec<Option<Box<ast::Expression>>>> {
+    fn parse_call_arguments(&mut self) -> Option<Vec<Option<Box<ExpressionKind>>>> {
         let mut args = Vec::new();
         if self.peek_token_is(token::RPAREN) {
             self.next_token();
@@ -493,12 +501,12 @@ impl Parser {
         Some(args)
     }
 
-    fn parse_string_literal(&mut self) -> Option<Box<ast::Expression>> {
+    fn parse_string_literal(&mut self) -> Option<Box<ExpressionKind>> {
         let cur_token = self.cur_token.clone();
-        Some(Box::new(ast::StringLiteral { token: cur_token, value: self.cur_token.literal.clone() }))
+        Some(Box::new(ExpressionKind::StringLiteral { token: cur_token, value: self.cur_token.literal.clone() }))
     }
 
-    /*fn parse_while_literal(&mut self) -> Option<Box<ast::Expression>> {
+    /*fn parse_while_literal(&mut self) -> Option<Box<astenum::ExpressionKind>> {
         let cur_token = self.cur_token;
         if !self.expect_peek(token::RPAREN) {
             return None;
@@ -509,7 +517,7 @@ impl Parser {
         Some(Box::new(ast::WhileLiteral { token: self.cur_token, consequence: self.parse_block_statement().unwrap() }))
     }
 
-    fn parse_import_literal(&mut self) -> Option<Box<ast::Expression>> {
+    fn parse_import_literal(&mut self) -> Option<Box<astenum::ExpressionKind>> {
         let cur_token = self.cur_token;
         if !self.expect_peek(token::STRING) {
             return None;
@@ -518,12 +526,12 @@ impl Parser {
     }
         */
 
-    fn parse_array_literal(&mut self) -> Option<Box<ast::Expression>> {
+    fn parse_array_literal(&mut self) -> Option<Box<ExpressionKind>> {
         let cur_token = self.cur_token.clone();
-        Some(Box::new(ast::ArrayLiteral { token: cur_token, elements: self.parse_expression_list(token::RBRACKET).unwrap() }))
+        Some(Box::new(ExpressionKind::ArrayLiteral { token: cur_token, elements: self.parse_expression_list(token::RBRACKET).unwrap() }))
     }
 
-    fn prase_index_expression(&mut self, left: Box<ast::Expression>) -> Option<Box<ast::Expression>> {
+    fn prase_index_expression(&mut self, left: Box<ExpressionKind>) -> Option<Box<ExpressionKind>> {
         let cur_token = self.cur_token.clone();
         let left = left;
         self.next_token();
@@ -531,10 +539,10 @@ impl Parser {
         if !self.expect_peek(token::RBRACKET) {
             return None;
         }
-        Some(Box::new( ast::IndexExpression { token: cur_token, left: left, index: index } ))
+        Some(Box::new(ExpressionKind::IndexExpression { token: cur_token, left: left, index: index } ))
     }
 
-    fn parse_expression_list(&mut self, end: token::TokenType) -> Option<Vec<Box<ast::Expression>>> {
+    fn parse_expression_list(&mut self, end: token::TokenType) -> Option<Vec<Box<ExpressionKind>>> {
         let mut list = Vec::new();
         if self.peek_token_is(end.clone()) {
             self.next_token();
@@ -557,7 +565,7 @@ impl Parser {
         Some(list)
     }
 
-    fn parse_index_expression(&mut self, left: Option<Box<ast::Expression>>) -> Option<Box<ast::Expression>> {
+    fn parse_index_expression(&mut self, left: Option<Box<ExpressionKind>>) -> Option<Box<ExpressionKind>> {
         let cur_token = self.cur_token.clone();
         self.next_token();
         let index = self.parse_expression(LOWEST);
@@ -567,7 +575,7 @@ impl Parser {
         }
         match left {
             Some(l) => {
-                return Some(Box::new(ast::IndexExpression { token: cur_token, left: l, index: index }));
+                return Some(Box::new(ExpressionKind::IndexExpression { token: cur_token, left: l, index: index }));
             },
             None => {
                 return None;
@@ -577,7 +585,7 @@ impl Parser {
 
 }
 
-
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -596,7 +604,7 @@ mod tests {
             let mut program = p.parse_program();
             assert_eq!(program.statements.len(), 1);
             let ref mut let_stmt = program.statements[0];
-            match let_stmt.as_any().downcast_ref::<ast::LetStatement>() {
+            match let_stmt.as_any().downcast_ref::<astenum::StatementKind::LetStatement>() {
                 Some(ref mut stmt) => {
                     let output = test.1;
                     let ref name = stmt.name;
@@ -626,7 +634,7 @@ mod tests {
         assert_eq!(program.statements.len(), 3);
     }
 
-    fn expression_test(type_t: &str, exp: &Box<ast::Expression>, expected: String) {
+    fn expression_test(type_t: &str, exp: &Box<astenum::ExpressionKind>, expected: String) {
         match type_t {
             "INT" => {
                 match exp.as_any().downcast_ref::<ast::IntegerLiteral>() {
@@ -673,7 +681,7 @@ mod tests {
         let mut p = Parser::new(lexer);
         let mut program = p.parse_program();
         let ref mut stmt = program.statements[0];
-        match stmt.as_any().downcast_ref::<ast::ExpressionStatement>() {
+        match stmt.as_any().downcast_ref::<astenum::ExpressionKindStatement>() {
             Some(ref mut st) => {
                 match st.expression {
                     Some(ref expression) => {
@@ -816,7 +824,7 @@ mod tests {
             let mut program = p.parse_program();
             assert_eq!(program.statements.len(), 1);
             let ref exp_stmt = program.statements[0];
-            match exp_stmt.as_any().downcast_ref::<ast::ExpressionStatement>() {
+            match exp_stmt.as_any().downcast_ref::<astenum::ExpressionKindStatement>() {
                 Some(ref mut stmt) => {
                     let outputs = test.1;
                     match stmt.expression {
@@ -845,3 +853,4 @@ mod tests {
     }
 
 }
+*/
