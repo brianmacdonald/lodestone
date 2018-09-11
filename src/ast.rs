@@ -24,7 +24,7 @@ impl NodeKind {
             }
         }
     }
-    fn string(self) -> String {
+    pub fn string(self) -> String {
         match self {
             NodeKind::ExpressionNode{expressionKind} => {
                 expressionKind.string()
@@ -38,9 +38,6 @@ impl NodeKind {
                     out.push_str(&s.string());
                 }
                 out
-            },
-            _ => {
-                String::from("")
             }
         }
     }
@@ -49,10 +46,12 @@ impl NodeKind {
 #[derive(Hash, Clone)]
 pub enum ExpressionKind {
     Identifier{token: token::Token, value: String},
+    SlotIdentifer{token: token::Token, parent: Option<Box<ExpressionKind>>, child: Option<Box<ExpressionKind>>, value: String},
     PrefixExpression{token: token::Token, operator: String, right: Option<Box<ExpressionKind>>},
     InfixExpression{token: token::Token, left: Option<Box<ExpressionKind>>, operator: String, right: Option<Box<ExpressionKind>>},
     BooleanExpression{token: token::Token, value: bool}, 
     IfExpression{token: token::Token, condition: Option<Box<ExpressionKind>>, consequence: Option<Box<StatementKind>>, alternative: Option<Box<StatementKind>>}, 
+    ObjectLiteral{token: token::Token},
     FunctionLiteral{token: token::Token, parameters: Vec<ExpressionKind>, body: Box<StatementKind>},
     CallExpression{token: token::Token, function: Box<ExpressionKind>, arguments: Vec<Box<ExpressionKind>>},
     StringLiteral{token: token::Token, value: String},
@@ -65,48 +64,57 @@ pub enum ExpressionKind {
 impl ExpressionKind {
     fn token_literal(self) -> String {
         match self {
-            ExpressionKind::Identifier{token, value} => {
+            ExpressionKind::Identifier{token, ..} => {
                 token.literal.clone()
             },
-            ExpressionKind::PrefixExpression{token, operator, right} => {
+            ExpressionKind::SlotIdentifer{token, ..} => {
                 token.literal.clone()
             },
-            ExpressionKind::InfixExpression{token, left, operator, right} => {
+            ExpressionKind::PrefixExpression{token, ..} => {
                 token.literal.clone()
             },
-            ExpressionKind::IfExpression{token, condition, consequence, alternative} => {
+            ExpressionKind::InfixExpression{token, ..} => {
                 token.literal.clone()
             },
-            ExpressionKind::BooleanExpression{token, value} => {
+            ExpressionKind::IfExpression{token, ..} => {
+                token.literal.clone()
+            },
+            ExpressionKind::BooleanExpression{token, ..} => {
                 token.literal.clone()
             }
-            ExpressionKind::FunctionLiteral{token, parameters, body} => {
+            ExpressionKind::FunctionLiteral{token, ..} => {
                 token.literal.clone()
             },
-            ExpressionKind::CallExpression{token, function, arguments} => {
+            ExpressionKind::CallExpression{token, ..} => {
                 token.literal.clone()
             },
-            ExpressionKind::StringLiteral{token, value} => {
+            ExpressionKind::StringLiteral{token, ..} => {
                 token.literal.clone()
             },
-            ExpressionKind::IntegerLiteral{token, value} => {
+            ExpressionKind::IntegerLiteral{token, ..} => {
                 token.literal.clone()
             },
-            ExpressionKind::WhileLiteral{token, condition, consequence} => {
+            ExpressionKind::WhileLiteral{token, ..} => {
                 token.literal.clone()
             },
-            ExpressionKind::ArrayLiteral{token, elements} => {
+            ExpressionKind::ArrayLiteral{token, ..} => {
                 token.literal.clone()
             },
-            ExpressionKind::IndexExpression{token, left, index} => {
+            ExpressionKind::IndexExpression{token, ..} => {
                 token.literal.clone()
-            }
+            },
+            ExpressionKind::ObjectLiteral{token, ..} => {
+                token.literal.clone()
+            },
         }
     }
     fn string(self) -> String {
         match self {
             ExpressionKind::Identifier{token, value} => {
                 value
+            },
+            ExpressionKind::SlotIdentifer{child, parent, ..} => {
+                String::from("slot")
             },
             ExpressionKind::PrefixExpression{token, operator, right} => {
                 let mut out = String::from("(");
@@ -184,12 +192,12 @@ impl ExpressionKind {
                 let mut out = String::from("");
                 out.push_str(&function.string());
                 out.push_str("(");
-                let mut argsVec = vec![];
+                let mut args_vec = vec![];
                 for a in arguments {
                     let arg = &a.string();
-                    argsVec.push(arg.clone());
+                    args_vec.push(arg.clone());
                 }
-                out.push_str(&argsVec.join(", "));
+                out.push_str(&args_vec.join(", "));
                 out.push_str(")");
                 out
             },
@@ -211,12 +219,12 @@ impl ExpressionKind {
             ExpressionKind::ArrayLiteral{token, elements} => {
                 let mut out = String::from("[");
                 let elements = elements;
-                let mut elesVec = vec![];
+                let mut eles_vec = vec![];
                 for e in elements {
                     let ele = &e.string();
-                    elesVec.push(ele.clone());
+                    eles_vec.push(ele.clone());
                 }
-                out.push_str(&elesVec.join(", "));
+                out.push_str(&eles_vec.join(", "));
                 out.push_str("]");
                 out
             },
@@ -234,6 +242,9 @@ impl ExpressionKind {
                 out.push_str("])");
                 out
             },
+            ExpressionKind::ObjectLiteral{token, ..} => {
+                String::from("ObjectLiteral")
+            }
         }
     }
 }
@@ -241,6 +252,7 @@ impl ExpressionKind {
 #[derive(Hash, Clone)]
 pub enum StatementKind {
     LetStatement{token: token::Token, name: ExpressionKind, value: Option<Box<ExpressionKind>>}, 
+    AssignStatement{token: token::Token, name: ExpressionKind, slot_name: String, value: Option<Box<ExpressionKind>>}, 
     ReturnStatement{token: token::Token, return_value: Option<Box<StatementKind>>},
     ExpressionStatement{token: token::Token, expression: Option<Box<ExpressionKind>>},
     BlockStatement{token: token::Token, statements: Vec<Box<StatementKind>>}
@@ -298,6 +310,9 @@ impl StatementKind {
                 }
                 out
             },
+            _ => {
+                String::from("needs string")
+            }
         }
     }
 

@@ -35,7 +35,7 @@ pub fn eval(node: NodeKind, env: &mut Environment) -> ObjectKind {
                         _ => {}
                     }
                 },
-                StatementKind::ReturnStatement{return_value: return_value, ..} => {
+                StatementKind::ReturnStatement{return_value, ..} => {
                     match return_value {
                         Some(return_val) => {
                             let val = eval(NodeKind::StatementNode{statementKind: *return_val}, env);
@@ -51,13 +51,29 @@ pub fn eval(node: NodeKind, env: &mut Environment) -> ObjectKind {
                     }
                     panic!("not implmented");
                 },
-                StatementKind::ExpressionStatement{token, expression} => {
+                StatementKind::AssignStatement{name, slot_name, value, ..} => {
+                    match value {
+                        Some(w_val) => {
+                            match name {
+                                ExpressionKind::Identifier{value: val, ..} => {
+                                    println!("For some reason this pulled from env: {}", val);
+                                    let mut e_val = env.get(val);
+                                    let eval_val = eval(NodeKind::ExpressionNode{expressionKind: *w_val}, env);
+                                    e_val.add_to_slots(slot_name, eval_val);
+                                },
+                                _ => {}
+                            }
+                        },
+                        _ => {}
+                    }
+                },
+                StatementKind::ExpressionStatement{expression, ..} => {
                     match expression {
                         Some(exp) => {
                             return eval(NodeKind::ExpressionNode{expressionKind: *exp}, env);
                         },
                         _ => {
-                            panic!("not implmented");
+                            panic!("expression not implmented: ");
                         }
                     }
                 },
@@ -69,10 +85,15 @@ pub fn eval(node: NodeKind, env: &mut Environment) -> ObjectKind {
                 }                
             }
         },
-        NodeKind::ExpressionNode{expressionKind} => {
-            match expressionKind {
+        NodeKind::ExpressionNode{expressionKind: expression_kind} => {
+            match expression_kind {
+                ExpressionKind::SlotIdentifer{ parent, child, ..} => {
+                    println!("slot ident");
+                    return eval_slot_identifier(parent, child, env);
+                },
                 ExpressionKind::Identifier{..} => {
-                    return eval_identifier(expressionKind, env);
+                    println!("ident");
+                    return eval_identifier(expression_kind, env);
                 },
                 ExpressionKind::PrefixExpression{token, operator, right} => {
                     match right {
@@ -91,7 +112,7 @@ pub fn eval(node: NodeKind, env: &mut Environment) -> ObjectKind {
                     }
                     panic!("right part of prefix not found.");
                 },
-                ExpressionKind::InfixExpression{operator: operator, left: left, right: right, ..} => {
+                ExpressionKind::InfixExpression{operator, left, right, ..} => {
                     match left {
                         Some(l) => {
                             let eval_left = eval(NodeKind::ExpressionNode{expressionKind: *l}, env);
@@ -122,12 +143,15 @@ pub fn eval(node: NodeKind, env: &mut Environment) -> ObjectKind {
                     return native_bool_to_boolean_object(value);
                 },
                 ExpressionKind::IfExpression{..} => {
-                    return eval_if_expression(expressionKind, env);
+                    return eval_if_expression(expression_kind, env);
                 },
                 ExpressionKind::FunctionLiteral{token, parameters, body} => {
                     return ObjectKind::Function{slots: HashMap::new(), parameters: parameters, body: *body, env: env.clone()};
                 },
-                ExpressionKind::CallExpression{function: function, arguments, ..} => {
+                ExpressionKind::ObjectLiteral{..} => {
+                    return ObjectKind::LObject{slots: HashMap::new()};
+                },
+                ExpressionKind::CallExpression{function, arguments, ..} => {
                     let func = eval(NodeKind::ExpressionNode{expressionKind: *function}, env);
 
                     let args = eval_expressions(arguments, env);
@@ -150,20 +174,17 @@ pub fn eval(node: NodeKind, env: &mut Environment) -> ObjectKind {
                     }
                     return apply_function(func, args);
                 },
-                ExpressionKind::StringLiteral{value: value, ..} => {
+                ExpressionKind::StringLiteral{value, ..} => {
                     return ObjectKind::StringObj{slots: HashMap::new(), value};
                 },
                 ExpressionKind::IntegerLiteral{token, value} => {
-                    return ObjectKind::Integer{slots: HashMap::new(), value: value};
+                    return ObjectKind::Integer{slots: HashMap::new(), value};
                 },
                 _ => {
                     panic!("not implmented");
                 }
             }
-        },
-        _ => {
-            panic!("object type not implmented");
-        }        
+        }    
     }
     return ObjectKind::Null;
 }
@@ -171,8 +192,8 @@ pub fn eval(node: NodeKind, env: &mut Environment) -> ObjectKind {
 fn eval_program(statements: Vec<StatementKind>, env: &mut Environment) -> ObjectKind {
 
     for s in statements {
-        let sNode = NodeKind::StatementNode{statementKind: s};
-        let result = eval(sNode, env);
+        let s_node = NodeKind::StatementNode{statementKind: s};
+        let result = eval(s_node, env);
         match result {
             ObjectKind::ReturnValue{value} => {
                 return *value;
@@ -268,7 +289,7 @@ fn eval_block_statement(block: StatementKind, env: &mut Environment) -> ObjectKi
     let mut result = ObjectKind::Error{message: String::from("block statement error")};
 
     match block {
-        StatementKind::BlockStatement{statements: statements, ..} => {
+        StatementKind::BlockStatement{statements, ..} => {
             for statement in statements {
                 result = eval(NodeKind::StatementNode{statementKind:*statement}, env);
                 match result {
@@ -395,12 +416,12 @@ fn eval_if_expression(ie: ExpressionKind, env: &mut Environment) -> ObjectKind {
 
 
 fn eval_identifier(node: ExpressionKind, env: &mut Environment) -> ObjectKind {
-
     match node {
         ExpressionKind::Identifier{token, value} => {
             // Design decision: we're pulling a value out of the environment here.
             //                  This basically makes its value immutable since changing
             //                  the value wont change it in the environment.
+            println!("eval'ing indent {}", value);
             env.clone().get(value)
         },
         _ => {
@@ -410,12 +431,47 @@ fn eval_identifier(node: ExpressionKind, env: &mut Environment) -> ObjectKind {
     }
 }
 
+fn eval_slot_identifier(parent: Option<Box<ExpressionKind>>, child: Option<Box<ExpressionKind>>, env: &mut Environment) -> ObjectKind {
+
+    match parent {
+        Some(p) => {
+            match *p {
+                ExpressionKind::Identifier{value: parent_val, ..} => {
+                    println!("getting parent from env: {}", parent_val);
+                    let mut parent_in_env = env.get(parent_val);
+                    match child {
+                        Some(c) => {
+                            let child_expression = *c.clone();
+                            match child_expression {
+                                ExpressionKind::SlotIdentifer{parent, child, value, ..} => {
+                                    let c_obj = eval_slot_identifier(parent.clone(), child.clone(), env);
+                                    println!("adding {} to slot", value);
+                                    parent_in_env.add_to_slots(value, c_obj);
+                                },
+                                _ => {
+                                    let eval_child = eval(NodeKind::ExpressionNode{expressionKind: *c}, env);
+                                    parent_in_env.add_to_slots(String::from("bar"), eval_child);
+                                }
+                            }
+                        },
+                        _ => {}
+                    }
+                    return parent_in_env;
+                },
+                _ => {}
+            }
+        },
+        _ => {}
+    }
+    panic!("slot identifiter not valid.")
+}
+
 fn eval_expressions(exps: Vec<Box<ExpressionKind>>, env: &mut Environment) -> Vec<ObjectKind> {
 	let mut result = Vec::new();
 
 	for e in exps {
-        let expressioNode = NodeKind::ExpressionNode{expressionKind: *e};
-		let evaluated = eval(expressioNode, env);
+        let expression_node = NodeKind::ExpressionNode{expressionKind: *e};
+		let evaluated = eval(expression_node, env);
 		match evaluated {
             ObjectKind::Error{..} => {
                 panic!("not implmented");
@@ -429,7 +485,7 @@ fn eval_expressions(exps: Vec<Box<ExpressionKind>>, env: &mut Environment) -> Ve
 
 fn apply_function(func: ObjectKind, args: Vec<ObjectKind>) -> ObjectKind {
     match func {
-        ObjectKind::Function{parameters: parameters, body: body, env: env, ..} => {
+        ObjectKind::Function{parameters, body, env, ..} => {
             let fn_body = body.clone();
             let extended_env = extend_function_env(parameters, env, args);
             let evaluated = eval(NodeKind::StatementNode{statementKind: fn_body}, &mut extended_env.clone());
@@ -496,7 +552,6 @@ fn eval_string_infix_expression (operator: String, left: ObjectKind, right: Obje
             panic!("left is not a string.");
         }
     }
-    panic!("Non-valid string input.");
 }
 
 fn is_error(obj: ObjectKind) -> bool {

@@ -14,7 +14,11 @@ impl Environment {
                 v.clone()
             },
             _ => {
-                ObjectKind::Error{message: String::from("Error finding key")}
+                println!("Key `{}` not in env store! Here is what it contains:", &key);
+                for (key, value) in &self.store {
+                    println!("  - {}: \"{}\"", key, value);
+                }
+                ObjectKind::Error{message: String::from("Error finding key in environment")}
             }
         }
     }

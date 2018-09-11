@@ -37,9 +37,9 @@ impl Lexer {
 
     pub fn next_token(&mut self) -> token::Token {
         let tok: token::Token;
-        println!("about to test bws: {}", self.ch);
+        println!("about to test before white space: {}", self.ch);
         self.skip_whitespace();
-        println!("abount to test: {}", self.ch);
+        println!("about to test: {}", self.ch);
         match self.ch {
             ':' => {
                 if self.peek_char() == '=' {
@@ -348,9 +348,9 @@ five = ten;
 
 5 < 10 > 5;
 if (5 < 10) {
-   return true;
+    return true;
 } else {
-   return false;
+    return false;
 }
 
 10 == 10;

@@ -66,6 +66,9 @@ impl Parser {
             token::FUNCTION => {
                 return self.parse_function_literal();
             },
+            token::OBJECT => {
+                return self.parse_object_literal();
+            },
             token::STRING => {
                 return self.parse_string_literal();
             },
@@ -175,6 +178,7 @@ impl Parser {
     pub fn parse_program(&mut self) -> NodeKind {
         let mut stmt_vec: Vec<StatementKind> = Vec::new();
         while self.cur_token.t_type != token::EOF {
+            println!("== next program token: {} ", self.cur_token.literal);
             let stmt = self.parse_statement();
             match stmt {
                 Some(x) => {
@@ -195,7 +199,17 @@ impl Parser {
             token::RETURN => {
                 return self.parse_return_statement();
             },
+            token::IDENT => {
+                println!("check if next token is slot");
+                if !self.peek_token_is(token::SLOT) {
+                    println!("next is not slot");
+                    return self.parse_expression_statement();
+                } 
+                println!("+++++slot assignement");
+                return self.parse_assign_statement();
+            },
             _ => {
+                println!("other parse statement: {}", self.cur_token.literal);
                 return self.parse_expression_statement();
             }
         }
@@ -243,6 +257,27 @@ impl Parser {
         Some(Box::new(StatementKind::LetStatement { token: token, name: name, value: value }))
     }
 
+    fn parse_assign_statement(&mut self) -> Option<Box<StatementKind>> {
+        let token = self.cur_token.clone();
+        if !self.expect_peek(token::SLOT) {
+            println!("next token is not a slot");
+            return None;
+        }
+        let name = ExpressionKind::Identifier {token: token.clone(), value: token.clone().literal };
+        self.next_token();
+        let slot_name = self.cur_token.clone().literal;
+        println!("creating slot assignment for {}", slot_name);
+        if !self.expect_peek(token::ASSIGN) {
+            return None;
+        }
+        self.next_token();
+        let value = self.parse_expression(LOWEST);
+        if self.peek_token_is(token::SEMICOLON) {
+            self.next_token();
+        }
+        Some(Box::new(StatementKind::AssignStatement { token: token, name, slot_name, value }))
+    }
+
     fn parse_return_statement(&mut self) -> Option<Box<StatementKind>> {
         let token = self.cur_token.clone();
         self.next_token();
@@ -279,7 +314,7 @@ impl Parser {
     fn parse_expression(&mut self, precedence: u8) -> Option<Box<ExpressionKind>> {
         let cur_token = self.cur_token.clone();
         let peek_token = self.peek_token.clone();
-        let mut prefix = self.prefix_parse_call(cur_token.clone());
+        let prefix = self.prefix_parse_call(cur_token.clone());
         match prefix {
             Some(p) => {
                 let mut left_exp = Some(p);
@@ -439,6 +474,17 @@ impl Parser {
         }
     }
 
+    fn parse_object_literal(&mut self) -> Option<Box<ExpressionKind>> {
+        let cur_token = self.cur_token.clone();
+        if !self.expect_peek(token::LPAREN) {
+            return None;
+        }
+        if !self.expect_peek(token::RPAREN) {
+            return None;
+        }
+        Some(Box::new(ExpressionKind::ObjectLiteral { token: cur_token }))
+    }
+
     fn parse_function_parameters(&mut self) -> Vec<ExpressionKind> {
         let mut identifiers = Vec::new();
         if self.peek_token_is(token::RPAREN) {
@@ -468,8 +514,8 @@ impl Parser {
         match func {
             Some(f) => {
                 match args {
-                    Some(argsUnwrapped) => {
-                        Some(Box::new(ExpressionKind::CallExpression { token: cur_token, function: f, arguments: argsUnwrapped }))
+                    Some(args_unwrapped) => {
+                        Some(Box::new(ExpressionKind::CallExpression { token: cur_token, function: f, arguments: args_unwrapped }))
                     }
                     None => {
                         Some(Box::new(ExpressionKind::CallExpression { token: cur_token, function: f, arguments: vec![]}))
@@ -585,7 +631,7 @@ impl Parser {
 
 }
 
-/*
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -602,22 +648,40 @@ mod tests {
             let lexer = lexer::Lexer::new( String::from(test.0) );
             let mut p = Parser::new(lexer);
             let mut program = p.parse_program();
-            assert_eq!(program.statements.len(), 1);
-            let ref mut let_stmt = program.statements[0];
-            match let_stmt.as_any().downcast_ref::<astenum::StatementKind::LetStatement>() {
-                Some(ref mut stmt) => {
-                    let output = test.1;
-                    let ref name = stmt.name;
-                    assert_eq!(name.value, output.0);
-                    match stmt.value {
-                        Some(ref v) => {
-                            expression_test(output.2, &v, output.1);
+            match program {
+                NodeKind::ProgramNode{statements, ..} => {
+                    let let_stmt_op = statements.get(0);
+                    match let_stmt_op {
+                        Some(let_stmt) => {
+                            match let_stmt {
+                                StatementKind::LetStatement{name, value, ..} => {
+                                    let output = test.1;
+                                    match name {
+                                        ExpressionKind::Identifier{value: i_val, ..} => {
+                                            assert_eq!(i_val, output.0);
+                                        },
+                                        _ => panic!("not an identifier statement")
+                                    }
+                                    match value {
+                                        Some(v) => {
+                                            let let_value = v.clone();
+                                            expression_test(output.2, *let_value, output.1);
+                                        },
+                                        None => panic!("no value found.")
+                                    }
+                                },
+                                _ => panic!("not a let statement")
+                            }
                         },
-                        None => panic!("no value found.")
+                        _ => {
+                            panic!("first statement not found");
+                        }
                     }
                 },
-                None => panic!("not a let statement")
-            };
+                _ => {
+                    panic!("not a program");
+                }
+            }
         }
     }
 
@@ -631,41 +695,49 @@ mod tests {
         let lexer = lexer::Lexer::new( String::from(input) );
         let mut p = Parser::new(lexer);
         let mut program = p.parse_program();
-        assert_eq!(program.statements.len(), 3);
+        match program {
+            NodeKind::ProgramNode{statements} => {
+                assert_eq!(statements.len(), 3);
+            },
+            _ => {
+                panic!("not a program");
+            }
+        }
     }
 
-    fn expression_test(type_t: &str, exp: &Box<astenum::ExpressionKind>, expected: String) {
+
+    fn expression_test(type_t: &str, exp: ExpressionKind, expected: String) {
         match type_t {
             "INT" => {
-                match exp.as_any().downcast_ref::<ast::IntegerLiteral>() {
-                    Some(il) => {
-                        assert_eq!(il.value.to_string(), expected);
+                match exp {
+                    ExpressionKind::IntegerLiteral{value, ..} => {
+                        assert_eq!(value.to_string(), expected);
                     },
-                    None => panic!("Not a IntegerLiteral.")
+                    _ => panic!("Not a IntegerLiteral.")
                 }
             },
             "BOOL" => {
-                match exp.as_any().downcast_ref::<ast::Boolean>() {
-                    Some(il) => {
-                        assert_eq!(il.value.to_string(), expected);
+                match exp {
+                    ExpressionKind::BooleanExpression{value, ..} => {
+                        assert_eq!(value.to_string(), expected);
                     },
-                    None => panic!("Not a Boolean: ")
+                    _ => panic!("Not a Boolean: ")
                 }
             },
             "IDENT" => {
-                match exp.as_any().downcast_ref::<ast::Identifier>() {
-                    Some(il) => {
-                        assert_eq!(il.value.to_string(), expected);
+                match exp {
+                    ExpressionKind::Identifier{value, ..} => {
+                        assert_eq!(value.to_string(), expected);
                     },
-                    None => panic!("Not a Identifier.")
+                    _ => panic!("Not a Identifier.")
                 }
             },
             "STRING" => {
-                match exp.as_any().downcast_ref::<ast::StringLiteral>() {
-                    Some(il) => {
-                        assert_eq!(il.value.to_string(), expected);
+                match exp {
+                    ExpressionKind::StringLiteral{value, ..} => {
+                        assert_eq!(value.to_string(), expected);
                     },
-                    None => panic!("Not a StringLiteral.")
+                    _ => panic!("Not a StringLiteral.")
                 }
             },
             _ => {
@@ -673,7 +745,7 @@ mod tests {
             }
         }
     }
-
+    
     #[test]
     fn test_string_literal_expression() {
         let input = "\"hello world\";";
@@ -805,11 +877,19 @@ mod tests {
         for test in tests {
             let lexer = lexer::Lexer::new(String::from(test.0));
             let mut p = Parser::new(lexer);
-            let mut program = p.parse_program();
-            assert_eq!(program.string(), test.1);
+            let program = p.parse_program();
+            let program_str = program.clone().string();
+            match program {
+                NodeKind::ProgramNode{statements} => {
+                    assert_eq!(program_str, test.1);
+                },
+                _ => {
+                    panic!("not a program");
+                }
+            }
         }
     }
-
+    /*
     #[test]
     fn test_parsePrefixExpressions() {
         let tests = vec![
@@ -851,6 +931,6 @@ mod tests {
             };
         }
     }
+    */
 
 }
-*/

@@ -1,0 +1,4 @@
+
+let MAGIC := Object();
+let foo := Object();
+foo.bar := 99;

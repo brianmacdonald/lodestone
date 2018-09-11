@@ -29,6 +29,7 @@ pub const IDENT: TokenType = TokenType { name: "IDENT" };
 pub const UNDERSCORE: TokenType = TokenType { name: "UNDERSCORE" };
 // Keywords
 pub const FUNCTION: TokenType = TokenType { name: "FUNCTION" };
+pub const OBJECT: TokenType = TokenType { name: "OBJECT" };
 pub const IMPORT: TokenType = TokenType { name: "IMPORT" };
 pub const LET: TokenType = TokenType { name: "LET" };
 pub const WHILE: TokenType = TokenType { name: "WHILE" };
@@ -68,6 +69,7 @@ pub const INT: TokenType = TokenType { name: "INT" };
 
 pub fn keywords(key: String) -> Option<TokenType> {
     let mut kw_map = HashMap::new();
+    kw_map.insert(String::from("Object"), OBJECT);
     kw_map.insert(String::from("fun"), FUNCTION);
     kw_map.insert(String::from("let"), LET);
     kw_map.insert(String::from("while"), WHILE);

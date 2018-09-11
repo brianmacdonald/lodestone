@@ -2,7 +2,6 @@ use std::fmt;
 use std::collections::HashMap;
 use std::mem::discriminant;
 
-use super::ast::NodeKind;
 use super::ast::StatementKind;
 use super::ast::ExpressionKind;
 
@@ -16,6 +15,7 @@ pub enum ObjectKind {
     ReturnValue{value: Box<ObjectKind>},
     Error{message: String},
     Function{slots: HashMap<String, ObjectKind>, parameters: Vec<ExpressionKind>, body: StatementKind, env: Environment},
+    LObject{slots: HashMap<String, ObjectKind>},
     StringObj{slots: HashMap<String, ObjectKind>, value: String},
     BuiltIn,
     Array{slots: HashMap<String, ObjectKind>, elements: Vec<ObjectKind>}
@@ -27,9 +27,9 @@ impl ObjectKind {
         discriminant(&self) == discriminant(b)
     }
 
-    fn get_from_slots(self, key: String) -> ObjectKind {
+    pub fn get_from_slots(self, key: String) -> ObjectKind {
         match self {
-            ObjectKind::Integer{slots, ..} => {
+            ObjectKind::Integer{slots, ..} | ObjectKind::LObject{slots, ..} => {
                 let found = slots.get(&key);
                 match found {
                     Some(v) => {
@@ -57,9 +57,12 @@ impl ObjectKind {
         }
     }
 
-    fn add_to_slots(&mut self, key: String, value: ObjectKind) {
+    pub fn add_to_slots(&mut self, key: String, value: ObjectKind) {
         match self {
             ObjectKind::Integer{slots, ..} => {
+                slots.insert(key, value);
+            },
+            ObjectKind::LObject{slots, ..} => {
                 slots.insert(key, value);
             },
             _ => {
@@ -72,17 +75,23 @@ impl ObjectKind {
 impl fmt::Display for ObjectKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ObjectKind::Integer{value: value, ..} => {
+            ObjectKind::Integer{value, ..} => {
                 write!(f, "{}", value)
             },
-            ObjectKind::Error{message: message, ..} => {
+            ObjectKind::Error{message, ..} => {
                 write!(f, "{}", message)
             },
             ObjectKind::Null => {
                 write!(f, "{}", "Null")
             },
-            ObjectKind::StringObj{value: value, ..} => {
+            ObjectKind::StringObj{value, ..} => {
                 write!(f, "{}", value)
+            },
+            ObjectKind::LObject{slots, ..} => {
+                for (key, value) in slots {
+                    println!("  - {}: \"{}\"", key, &value);
+                }
+                write!(f, "{}", "Object")
             },
             _ => {
                 write!(f, "{}", "display not implmented")
