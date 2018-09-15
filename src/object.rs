@@ -1,6 +1,7 @@
 use std::fmt;
-use std::collections::HashMap;
 use std::mem::discriminant;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use super::ast::StatementKind;
 use super::ast::ExpressionKind;
@@ -9,16 +10,16 @@ use super::environment::Environment;
 
 #[derive(Clone)]
 pub enum ObjectKind {
-    Integer{slots: HashMap<String, ObjectKind>, value: u32},
+    Integer{slots: Arc<Mutex<Environment>>, value: u32},
     Boolean{value: bool},
     Null,
     ReturnValue{value: Box<ObjectKind>},
     Error{message: String},
-    Function{slots: HashMap<String, ObjectKind>, parameters: Vec<ExpressionKind>, body: StatementKind, env: Environment},
-    LObject{slots: HashMap<String, ObjectKind>},
-    StringObj{slots: HashMap<String, ObjectKind>, value: String},
+    Function{slots: Arc<Mutex<Environment>>, parameters: Vec<ExpressionKind>, body: StatementKind, env: Arc<Mutex<Environment>>},
+    LObject{slots: Arc<Mutex<Environment>>},
+    StringObj{slots: Arc<Mutex<Environment>>, value: String},
     BuiltIn,
-    Array{slots: HashMap<String, ObjectKind>, elements: Vec<ObjectKind>}
+    Array{slots: Arc<Mutex<Environment>>, elements: Vec<ObjectKind>}
 }
 
 impl ObjectKind {
@@ -30,15 +31,8 @@ impl ObjectKind {
     pub fn get_from_slots(self, key: String) -> ObjectKind {
         match self {
             ObjectKind::Integer{slots, ..} | ObjectKind::LObject{slots, ..} => {
-                let found = slots.get(&key);
-                match found {
-                    Some(v) => {
-                        v.clone()
-                    },
-                    _ => {
-                        ObjectKind::Error{message: String::from("Error finding key")}
-                    }
-                }
+                let val = slots.lock().unwrap().get(key).clone();
+                return val.lock().unwrap().clone();
             },
             _ => {
                 panic!("not implmented");
@@ -49,7 +43,7 @@ impl ObjectKind {
     fn remove_from_slots(&mut self, key: String) {
         match self {
             ObjectKind::Integer{slots, ..} => {
-                slots.remove(&key);
+                slots.lock().unwrap().remove(key);
             },
             _ => {
                 panic!("not implmented");
@@ -57,13 +51,13 @@ impl ObjectKind {
         }
     }
 
-    pub fn add_to_slots(&mut self, key: String, value: ObjectKind) {
+    pub fn add_to_slots(&mut self, key: String, value: Arc<Mutex<ObjectKind>>) {
         match self {
             ObjectKind::Integer{slots, ..} => {
-                slots.insert(key, value);
+                slots.lock().unwrap().insert(key, value);
             },
             ObjectKind::LObject{slots, ..} => {
-                slots.insert(key, value);
+                slots.lock().unwrap().insert(key, value);
             },
             _ => {
                 panic!("not implmented");
@@ -88,7 +82,9 @@ impl fmt::Display for ObjectKind {
                 write!(f, "{}", value)
             },
             ObjectKind::LObject{slots, ..} => {
-                for (key, value) in slots {
+                let mut slots = slots.clone();
+                for (key, value) in slots.lock().unwrap().store.clone() {
+                    let value = value.lock().unwrap().clone();
                     println!("  - {}: \"{}\"", key, &value);
                 }
                 write!(f, "{}", "Object")

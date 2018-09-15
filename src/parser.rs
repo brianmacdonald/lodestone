@@ -23,6 +23,7 @@ pub struct Parser {
     peek_token: token::Token,
 }
 
+
 impl Parser {
 
     pub fn new(lexer: lexer::Lexer) -> Parser {
@@ -67,6 +68,12 @@ impl Parser {
                 return self.parse_function_literal();
             },
             token::OBJECT => {
+                return self.parse_object_literal();
+            },
+            token::LBRACE => {
+                if !self.peek_token_is(token::RBRACE) {
+                    return None;
+                }
                 return self.parse_object_literal();
             },
             token::STRING => {
@@ -200,13 +207,7 @@ impl Parser {
                 return self.parse_return_statement();
             },
             token::IDENT => {
-                println!("check if next token is slot");
-                if !self.peek_token_is(token::SLOT) {
-                    println!("next is not slot");
-                    return self.parse_expression_statement();
-                } 
-                println!("+++++slot assignement");
-                return self.parse_assign_statement();
+                return self.parse_expression_statement();
             },
             _ => {
                 println!("other parse statement: {}", self.cur_token.literal);
@@ -292,10 +293,42 @@ impl Parser {
     fn parse_expression_statement(&mut self) -> Option<Box<StatementKind>> {
         let token = self.cur_token.clone();
         let expression = self.parse_expression(LOWEST);
+        let slot_assignment_statement = self.parse_slot_assignment_statement(expression.clone());
+        match slot_assignment_statement {
+            None => {},
+            _ => {
+                if self.peek_token_is(token::SEMICOLON) {
+                    self.next_token();
+                }
+                return slot_assignment_statement;
+            }
+        }
         if self.peek_token_is(token::SEMICOLON) {
             self.next_token();
         }
         Some(Box::new(StatementKind::ExpressionStatement{ token: token, expression: expression } ))
+    }
+
+    fn parse_slot_assignment_statement(&mut self, expression: Option<Box<ExpressionKind>>) -> Option<Box<StatementKind>> {
+        match expression {
+            Some(exp) => {
+                let token = self.cur_token.clone();
+                let e = exp.clone();
+                match *exp {
+                    ExpressionKind::SlotIdentiferExpression{..} => {
+                        if self.peek_token_is(token::ASSIGN) {
+                            self.next_token();
+                            self.next_token();
+                            let value = self.parse_expression(LOWEST);
+                            return Some(Box::new(StatementKind::SlotAssignmentStatement{token: token, slot: Some(e), value}));
+                        }
+                    },
+                    _ => {}
+                }
+            },
+            _ => {}
+        }
+        return None;
     }
 
     fn parse_prefix_expression(&mut self) -> Option<Box<ExpressionKind>> {
@@ -313,7 +346,6 @@ impl Parser {
 
     fn parse_expression(&mut self, precedence: u8) -> Option<Box<ExpressionKind>> {
         let cur_token = self.cur_token.clone();
-        let peek_token = self.peek_token.clone();
         let prefix = self.prefix_parse_call(cur_token.clone());
         match prefix {
             Some(p) => {
@@ -340,6 +372,19 @@ impl Parser {
     }
 
     fn parse_identifier(&mut self) -> Option<Box<ExpressionKind>> {
+        if self.peek_token_is(token::SLOT) {
+            let parent = self.cur_token.literal.clone();
+            self.next_token();
+            let mut children = Vec::new();
+            while self.peek_token_is(token::IDENT) {
+                self.next_token();
+                children.push(self.cur_token.literal.clone());
+                if self.peek_token_is(token::SLOT) {
+                    self.next_token();
+                } 
+            }
+            return Some(Box::new(ExpressionKind::SlotIdentiferExpression{token: self.cur_token.clone(), parent, children}));
+        } 
         Some(Box::new(ExpressionKind::Identifier { token: self.cur_token.clone(), value: self.cur_token.literal.clone()}))
     }
 
@@ -476,11 +521,11 @@ impl Parser {
 
     fn parse_object_literal(&mut self) -> Option<Box<ExpressionKind>> {
         let cur_token = self.cur_token.clone();
-        if !self.expect_peek(token::LPAREN) {
+        if !self.expect_peek(token::RBRACE) {
             return None;
         }
-        if !self.expect_peek(token::RPAREN) {
-            return None;
+        if self.peek_token_is(token::SEMICOLON) {
+            self.next_token();
         }
         Some(Box::new(ExpressionKind::ObjectLiteral { token: cur_token }))
     }
@@ -643,6 +688,7 @@ mod tests {
             ("let y := true;", ("y", true.to_string(), "BOOL")),
             ("let foobar := y;", ("foobar", String::from("y"), "IDENT")),
             ("let foobar := \"spam\";", ("foobar", String::from("spam"), "STRING")),
+            ("let foobar := {};", ("foobar", String::from("spam"), "OBJECT")),
         ];
         for test in tests.into_iter() {
             let lexer = lexer::Lexer::new( String::from(test.0) );
@@ -694,7 +740,7 @@ mod tests {
         ";
         let lexer = lexer::Lexer::new( String::from(input) );
         let mut p = Parser::new(lexer);
-        let mut program = p.parse_program();
+        let program = p.parse_program();
         match program {
             NodeKind::ProgramNode{statements} => {
                 assert_eq!(statements.len(), 3);
@@ -704,6 +750,45 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_identifier_expressions() {
+        let input = "foobar;";
+        let lexer = lexer::Lexer::new( String::from(input) );
+        let mut p = Parser::new(lexer);
+        let program = p.parse_program();
+        match program {
+            NodeKind::ProgramNode{statements} => {
+                assert_eq!(statements.len(), 1);
+                let first_statement = &statements[0];
+                match first_statement {
+                    StatementKind::ExpressionStatement{expression, ..} => {
+                        match expression {
+                            Some(exp) => {
+                                let e = exp.clone();
+                                match *e {
+                                    ExpressionKind::Identifier{value, ..} => {
+                                        assert_eq!(value, String::from("foobar"));
+                                    },
+                                    _ => panic!("not an expression")
+                                }
+                            },
+                            _ => {
+                                panic!("not an expression");
+                            }
+                        }
+                    },
+                    _ => {
+                        panic!("no first statement");
+                    }
+                } 
+            },
+            _ => {
+                panic!("not a program");
+            }
+        }
+    }
+
 
 
     fn expression_test(type_t: &str, exp: ExpressionKind, expected: String) {
@@ -740,29 +825,130 @@ mod tests {
                     _ => panic!("Not a StringLiteral.")
                 }
             },
+            "OBJECT" => {
+                match exp {
+                    ExpressionKind::ObjectLiteral{..} => {},
+                    _ => panic!("Not an ObjectLiteral.")
+                }
+            },
+            "SLOT_EXPRESSION" => {
+                match exp {
+                    ExpressionKind::SlotIdentiferExpression{parent, children, ..} => {
+                        if expected != format!("{}.{}", parent, children.join(".")) {
+                            panic!("Does not match.")
+                        }
+                    },
+                    _ => panic!("Not an slot expression.")
+                }
+            },
             _ => {
                 panic!("Type not found.")
             }
         }
     }
-    
+
     #[test]
     fn test_string_literal_expression() {
         let input = "\"hello world\";";
         let lexer = lexer::Lexer::new(String::from(input));
         let mut p = Parser::new(lexer);
-        let mut program = p.parse_program();
-        let ref mut stmt = program.statements[0];
-        match stmt.as_any().downcast_ref::<astenum::ExpressionKindStatement>() {
-            Some(ref mut st) => {
-                match st.expression {
-                    Some(ref expression) => {
-                        expression_test("STRING", &expression, String::from("hello world"));
+        let program = p.parse_program();
+        expression_test("STRING", unwrap_first_expression_from_program(program), String::from("hello world"));
+    }
+
+    #[test]
+    fn test_slot_expression() {
+        let input = "vehicle.wheels;";
+        let lexer = lexer::Lexer::new(String::from(input));
+        let mut p = Parser::new(lexer);
+        let program = p.parse_program();
+        expression_test("SLOT_EXPRESSION", unwrap_first_expression_from_program(program), String::from("vehicle.wheels"));
+    }
+
+    #[test]
+    fn test_mulitiple_slot_expression() {
+        let input = "vehicle.wheels.tires;";
+        let lexer = lexer::Lexer::new(String::from(input));
+        let mut p = Parser::new(lexer);
+        let program = p.parse_program();
+        expression_test("SLOT_EXPRESSION", unwrap_first_expression_from_program(program), String::from("vehicle.wheels.tires"));
+    }
+
+    #[test]
+    fn test_slot_assign_statement() {
+        let input = "vehicle.wheels.tires := fast;";
+        let lexer = lexer::Lexer::new(String::from(input));
+        let mut p = Parser::new(lexer);
+        let program = p.parse_program();
+        let stmt = unwrap_first_statement_from_program(program);
+        match stmt {
+            StatementKind::SlotAssignmentStatement{slot, value, ..} => {
+                match slot {
+                    Some(s) => {
+                        match *s {
+                            ExpressionKind::SlotIdentiferExpression{parent, ..} => {
+                                assert_eq!(parent, String::from("vehicle"));
+                            },
+                            _ => {
+                                panic!("not a slot identifier expression");
+                            }
+                        }
                     },
-                    None => panic!("expression not found.")
+                    _ => {
+                        panic!("slot not found");
+                    }
+                }
+                match value {
+                    Some(v) => {
+                        match *v {
+                            ExpressionKind::Identifier{value, ..} => {
+                                assert_eq!(value, String::from("fast"));
+                            },
+                            _ => {
+                                panic!("no value for slot");
+                            }
+                        }
+                    },
+                    _ => {
+                        panic!("value not found");
+                    }
                 }
             },
-            None => panic!("not a let statement")
+            _ => {
+                panic!("not a slot assignment statement");
+            }
+        }
+    }    
+
+    fn unwrap_first_expression_from_program(program: NodeKind) -> ExpressionKind {
+        let st = unwrap_first_statement_from_program(program);
+        match st {
+            StatementKind::ExpressionStatement{expression, ..} => {
+                match expression {
+                    Some(exp) => {
+                        return *exp.clone()
+                    },
+                    None => panic!("can't unwrap expression since expression statement is None.")
+                }
+            },
+            _ => {
+                panic!("not an expression statement")
+            }
+        }
+    }
+
+    fn unwrap_first_statement_from_program(program: NodeKind) -> StatementKind {
+        match program {
+            NodeKind::ProgramNode{statements, ..} => {
+                let ref mut stmt = statements.get(0);
+                match stmt {
+                    Some(st) => {
+                        return st.clone()
+                    },
+                    None => panic!("no statements")
+                }
+            },
+            _ => panic!("not a program")
         }
     }
 
@@ -880,7 +1066,7 @@ mod tests {
             let program = p.parse_program();
             let program_str = program.clone().string();
             match program {
-                NodeKind::ProgramNode{statements} => {
+                NodeKind::ProgramNode{..} => {
                     assert_eq!(program_str, test.1);
                 },
                 _ => {
@@ -889,9 +1075,9 @@ mod tests {
             }
         }
     }
-    /*
+
     #[test]
-    fn test_parsePrefixExpressions() {
+    fn test_parse_prefix_expressions() {
         let tests = vec![
             ("!5;", ("!", ("INT", 5.to_string()))),
     		("-15;", ("-", ("INT", 15.to_string()))),
@@ -901,36 +1087,40 @@ mod tests {
         for test in tests {
             let lexer = lexer::Lexer::new(String::from(test.0));
             let mut p = Parser::new(lexer);
-            let mut program = p.parse_program();
-            assert_eq!(program.statements.len(), 1);
-            let ref exp_stmt = program.statements[0];
-            match exp_stmt.as_any().downcast_ref::<astenum::ExpressionKindStatement>() {
-                Some(ref mut stmt) => {
-                    let outputs = test.1;
-                    match stmt.expression {
-                        Some(ref e) => {
-                            match e.as_any().downcast_ref::<ast::PrefixExpression>() {
-                                Some(exp) => {
-                                    assert_eq!(exp.operator, outputs.0);
-                                    let output = outputs.1;
-                                    let ref right = exp.right;
-                                    match *right {
-                                        Some(ref r) => {
-                                            expression_test(output.0, &r, String::from(output.1));
+            let program = p.parse_program();
+            match program {
+                NodeKind::ProgramNode{statements, ..} => {
+                    assert_eq!(statements.len(), 1);
+                    let ref exp_stmt = statements[0];
+                    match exp_stmt {
+                        StatementKind::ExpressionStatement{expression, ..} => {
+                            let outputs = test.1;
+                            match expression {
+                                Some(e) => {
+                                    match **e { // TODO: why does this need to be dereffed twice?
+                                        ExpressionKind::PrefixExpression{ref operator, ref right, ..} => {
+                                            assert_eq!(operator, outputs.0);
+                                            let output = outputs.1;
+                                            match right {
+                                                Some(r) => {
+                                                    expression_test(output.0, *r.clone(), String::from(output.1));
+                                                },
+                                                None => panic!("right not found.")
+                                            }
                                         },
-                                        None => panic!("right not found.")
+                                        _ => panic!("not a PrefixExpression")
                                     }
                                 },
-                                None => panic!("not a PrefixExpression")
+                                None => panic!("no value found.")
                             }
                         },
-                        None => panic!("no value found.")
+                        _ => panic!("not a ExpressionStatement")
                     }
                 },
-                None => panic!("not a ExpressionStatement")
-            };
+                _ => {}
+            }
+            
         }
     }
-    */
 
 }

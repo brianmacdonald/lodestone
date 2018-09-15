@@ -1,4 +1,6 @@
-
-let MAGIC := Object();
-let foo := Object();
-foo.bar := 99;
+let obj := {};
+let add := fun(x) {
+    x % 2;
+};
+obj.foo := 5;
+obj.adder := add;

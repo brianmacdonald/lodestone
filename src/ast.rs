@@ -47,6 +47,7 @@ impl NodeKind {
 pub enum ExpressionKind {
     Identifier{token: token::Token, value: String},
     SlotIdentifer{token: token::Token, parent: Option<Box<ExpressionKind>>, child: Option<Box<ExpressionKind>>, value: String},
+    SlotIdentiferExpression{token: token::Token, parent: String, children: Vec<String>},
     PrefixExpression{token: token::Token, operator: String, right: Option<Box<ExpressionKind>>},
     InfixExpression{token: token::Token, left: Option<Box<ExpressionKind>>, operator: String, right: Option<Box<ExpressionKind>>},
     BooleanExpression{token: token::Token, value: bool}, 
@@ -68,6 +69,9 @@ impl ExpressionKind {
                 token.literal.clone()
             },
             ExpressionKind::SlotIdentifer{token, ..} => {
+                token.literal.clone()
+            },
+            ExpressionKind::SlotIdentiferExpression{token, ..} => {
                 token.literal.clone()
             },
             ExpressionKind::PrefixExpression{token, ..} => {
@@ -115,6 +119,16 @@ impl ExpressionKind {
             },
             ExpressionKind::SlotIdentifer{child, parent, ..} => {
                 String::from("slot")
+            },
+            ExpressionKind::SlotIdentiferExpression{parent, children, ..} => {
+                let mut out = String::from("SlotIdentifer(");
+                out.push_str(&parent);
+                out.push_str(".");
+                for child in children {
+                    out.push_str(&child);
+                }
+                out.push_str(")");
+                out
             },
             ExpressionKind::PrefixExpression{token, operator, right} => {
                 let mut out = String::from("(");
@@ -253,6 +267,7 @@ impl ExpressionKind {
 pub enum StatementKind {
     LetStatement{token: token::Token, name: ExpressionKind, value: Option<Box<ExpressionKind>>}, 
     AssignStatement{token: token::Token, name: ExpressionKind, slot_name: String, value: Option<Box<ExpressionKind>>}, 
+    SlotAssignmentStatement{token: token::Token, slot: Option<Box<ExpressionKind>>, value: Option<Box<ExpressionKind>>}, 
     ReturnStatement{token: token::Token, return_value: Option<Box<StatementKind>>},
     ExpressionStatement{token: token::Token, expression: Option<Box<ExpressionKind>>},
     BlockStatement{token: token::Token, statements: Vec<Box<StatementKind>>}
@@ -314,10 +329,6 @@ impl StatementKind {
                 String::from("needs string")
             }
         }
-    }
-
-    pub fn as_any(&self) -> &Any {
-        self
     }
 
 }

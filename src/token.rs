@@ -39,6 +39,9 @@ pub const IF: TokenType = TokenType { name: "IF" };
 pub const ELSE: TokenType = TokenType { name: "ELSE" };
 pub const RETURN: TokenType = TokenType { name: "RETURN" };
 // Operators
+pub const CLONE: TokenType = TokenType { name: ":=." };
+pub const CLONE_IMMUTABLE: TokenType = TokenType { name: ":=." };
+pub const ASSIGN_IMMUTABLE: TokenType = TokenType { name: "::=" };
 pub const ASSIGN: TokenType = TokenType { name: ":=" };
 pub const REASSIGN: TokenType = TokenType { name: "=" };
 pub const COLON: TokenType = TokenType { name: ":" };

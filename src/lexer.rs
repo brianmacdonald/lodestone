@@ -42,17 +42,37 @@ impl Lexer {
         println!("about to test: {}", self.ch);
         match self.ch {
             ':' => {
-                if self.peek_char() == '=' {
-                    let ch = self.ch;
-                    self.read_char();
-                    let mut l_literal = String::from(ch.to_string());
-                    l_literal.push(self.ch);
-                    tok = token::Token {
-                        t_type: token::ASSIGN,
-                        literal: l_literal,
-                    };
-                } else {
-                    tok = new_token(token::COLON, self.ch);
+                match self.peek_char() {
+                    '=' => {
+                        let ch = self.ch;
+                        self.read_char();
+                        let mut l_literal = String::from(ch.to_string());
+                        l_literal.push(self.ch);
+                        tok = token::Token {
+                            t_type: token::ASSIGN,
+                            literal: l_literal,
+                        };
+                    },
+                    ':' => {
+                        let ch = self.ch;
+                        let mut l_literal = String::from(ch.to_string());
+                        self.read_char();
+                        l_literal.push(self.ch);
+                        match self.peek_char() {
+                            '=' => {
+                                self.read_char();
+                                l_literal.push(self.ch);
+                                tok = token::Token {
+                                    t_type: token::ASSIGN_IMMUTABLE,
+                                    literal: l_literal,
+                                };
+                            },
+                            _ => panic!("Not a valid token")
+                        }
+                    },
+                    _ => {
+                        tok = new_token(token::COLON, self.ch);
+                    }
                 }
             }
             '!' => {
@@ -370,6 +390,8 @@ while (true) {
 import "/path/";
 
 five.add := add;
+
+assigned_immutable ::= mutable;
         "#;
         let expected = [
             (token::LET, "let"),
@@ -480,6 +502,10 @@ five.add := add;
             (token::IDENT, "add"),
             (token::ASSIGN, ":="),
             (token::IDENT, "add"),
+            (token::SEMICOLON, ";"),
+            (token::IDENT, "assigned_immutable"),
+            (token::ASSIGN_IMMUTABLE, "::="),
+            (token::IDENT, "mutable"),
             (token::SEMICOLON, ";"),
             (token::EOF, &eof.to_string()),
         ];

@@ -2,6 +2,8 @@ use std::io;
 use std::io::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use super::lexer::Lexer;
 use super::parser::Parser;
@@ -18,7 +20,8 @@ pub fn repl() {
     let il = Lexer::new(contents);
     let mut ip = Parser::new(il);
     let iprogram = ip.parse_program();
-    eval(iprogram, &mut env);
+    let boxed_env = Arc::new(Mutex::new(env));;
+    eval(iprogram, boxed_env.clone());
 
     let mut input = String::new();
     io::stdin().read_line(&mut input).expect(
@@ -27,6 +30,6 @@ pub fn repl() {
     let l = Lexer::new(input);
     let mut p = Parser::new(l);
     let program = p.parse_program();
-    let evaluated = eval(program, &mut env);
+    let evaluated = eval(program, boxed_env.clone());
     println!("You inputted: {}", evaluated);
 }

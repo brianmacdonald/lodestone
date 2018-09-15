@@ -1,0 +1,48 @@
+
+let MAGIC := Object
+
+# Simple example                    # Comment
+MyObject :=. Object                 # Clone the root object to get slots
+MyObject == Object                  # returns `false `Object and MyObject do not have the same hash since it was cloned.
+MyObject :=. {}                     # Clone the root object to get slots
+MyObject.self == MyObject           # returns `true`. This is due to a object hashing...
+MyObject.add := fn(self, x, y) { 
+    x + y
+}                                   # return needs to be implict on the last line.
+print(MyObject.add)                 # string of method code.
+MyObject.add(1, 2) == 3             # returns `true`
+MyObject ::=. Object                # Clones an object as immutable.
+MyObject.immutable == true          # returns `true`
+MyObject.greeting := "hello"        # throws immutable error
+Vehicle :=. Object 
+Vehicle :=. Object {                # Define the prototype of Object
+    self.wheel_count = 2
+}
+Car :=. Vehicle {                   # Define the prototype of Vehicle
+    wheel_count = 4
+    add = fn(self, a, b) {
+        a + b
+    }
+}
+Car.wheel_count = 1                 # throws immutable error
+sedan :=. Car                       # Create instance of Car
+sedan.wheel_count == 4              # returns `true`
+sedan.add(1, 2) == 3                # returns `true`
+limit := 2                          # create `limit` variable with int 2
+count := 0                          # create `count` variable with int 1
+while limit {
+    count := count + 1 
+}
+fruit := []                         # create instance of Object with Array methods
+fruit.insert("apple")               #
+fruit.insert("orange")              # 
+fruit_str := ""
+for fruit_type in fruit {
+    fruit_str := fruit_str + fruit_type
+}
+fruit_str == "appleorange"          # returns `true`
+if true {
+    print(true)
+} else {
+    print(false)
+}
