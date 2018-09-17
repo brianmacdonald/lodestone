@@ -48,10 +48,22 @@ impl Lexer {
                         self.read_char();
                         let mut l_literal = String::from(ch.to_string());
                         l_literal.push(self.ch);
-                        tok = token::Token {
-                            t_type: token::ASSIGN,
-                            literal: l_literal,
-                        };
+                        match self.peek_char() {
+                            '.' => {
+                                self.read_char();
+                                l_literal.push(self.ch);
+                                tok = token::Token {
+                                    t_type: token::CLONE,
+                                    literal: l_literal,
+                                };
+                            },
+                            _ => {
+                                tok = token::Token {
+                                    t_type: token::ASSIGN,
+                                    literal: l_literal,
+                                };
+                            }
+                        }
                     },
                     ':' => {
                         let ch = self.ch;

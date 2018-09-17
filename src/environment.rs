@@ -35,4 +35,8 @@ impl Environment {
     pub fn insert(&mut self, key: String, value: Arc<Mutex<ObjectKind>>) {
         self.store.insert(key, value);
     }
+
+    pub fn lock_insert(env: &Arc<Mutex<Environment>>, key: String, value: ObjectKind) {
+        env.lock().unwrap().insert(key, Arc::new(Mutex::new(value)));
+    }
 }

@@ -1,7 +1,5 @@
 use super::token;
 
-use std::any::Any;
-
 #[derive(Hash, Clone)]
 pub enum NodeKind {
     ExpressionNode{expressionKind: ExpressionKind},
@@ -266,11 +264,12 @@ impl ExpressionKind {
 #[derive(Hash, Clone)]
 pub enum StatementKind {
     LetStatement{token: token::Token, name: ExpressionKind, value: Option<Box<ExpressionKind>>}, 
-    AssignStatement{token: token::Token, name: ExpressionKind, slot_name: String, value: Option<Box<ExpressionKind>>}, 
+    LetCloneStatement{token: token::Token, name: ExpressionKind, value: Option<Box<ExpressionKind>>},
     SlotAssignmentStatement{token: token::Token, slot: Option<Box<ExpressionKind>>, value: Option<Box<ExpressionKind>>}, 
     ReturnStatement{token: token::Token, return_value: Option<Box<StatementKind>>},
     ExpressionStatement{token: token::Token, expression: Option<Box<ExpressionKind>>},
-    BlockStatement{token: token::Token, statements: Vec<Box<StatementKind>>}
+    BlockStatement{token: token::Token, statements: Vec<Box<StatementKind>>},
+    NullStatement
 }
 
 impl StatementKind {

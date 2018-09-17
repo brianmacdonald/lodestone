@@ -248,6 +248,14 @@ impl Parser {
         }
         let name = ExpressionKind::Identifier {token: self.cur_token.clone(), value: self.cur_token.clone().literal };
         if !self.expect_peek(token::ASSIGN) {
+            if self.expect_peek(token::CLONE) {
+                self.next_token();
+                let value = self.parse_expression(LOWEST);
+                if self.peek_token_is(token::SEMICOLON) {
+                    self.next_token();
+                }
+                return Some(Box::new(StatementKind::LetCloneStatement { token: token, name: name, value: value }));
+            } 
             return None;
         }
         self.next_token();
@@ -256,27 +264,6 @@ impl Parser {
             self.next_token();
         }
         Some(Box::new(StatementKind::LetStatement { token: token, name: name, value: value }))
-    }
-
-    fn parse_assign_statement(&mut self) -> Option<Box<StatementKind>> {
-        let token = self.cur_token.clone();
-        if !self.expect_peek(token::SLOT) {
-            println!("next token is not a slot");
-            return None;
-        }
-        let name = ExpressionKind::Identifier {token: token.clone(), value: token.clone().literal };
-        self.next_token();
-        let slot_name = self.cur_token.clone().literal;
-        println!("creating slot assignment for {}", slot_name);
-        if !self.expect_peek(token::ASSIGN) {
-            return None;
-        }
-        self.next_token();
-        let value = self.parse_expression(LOWEST);
-        if self.peek_token_is(token::SEMICOLON) {
-            self.next_token();
-        }
-        Some(Box::new(StatementKind::AssignStatement { token: token, name, slot_name, value }))
     }
 
     fn parse_return_statement(&mut self) -> Option<Box<StatementKind>> {

@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -9,6 +8,8 @@ use super::ast::ExpressionKind;
 use super::object::ObjectKind;
 use super::environment::Environment;
 
+use super::token;
+
 pub fn eval(node: NodeKind, env: Arc<Mutex<Environment>>) -> ObjectKind {
 	match node {
         NodeKind::ProgramNode{statements} => {
@@ -16,7 +17,7 @@ pub fn eval(node: NodeKind, env: Arc<Mutex<Environment>>) -> ObjectKind {
         },
         NodeKind::StatementNode{statementKind} => {
             match statementKind {
-                StatementKind::LetStatement{token, name, value} => {
+                StatementKind::LetStatement{name, value, ..} => {
                     match value {
                         Some(v) => {
                             let mut env_e = env.clone();
@@ -29,6 +30,29 @@ pub fn eval(node: NodeKind, env: Arc<Mutex<Environment>>) -> ObjectKind {
                                     match name {
                                         ExpressionKind::Identifier{token, value: name_value} => {
                                             env_e.lock().unwrap().insert(name_value, Arc::new(Mutex::new(val)));
+                                        },
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        },
+                        _ => {}
+                    }
+                },
+                StatementKind::LetCloneStatement{name, value, ..} => {
+                    match value {
+                        Some(v) => {
+                            let mut env_e = env.clone();
+                            let val = eval(NodeKind::ExpressionNode{expressionKind: *v}, env);
+                            match val {
+                                ObjectKind::Error{..} => {
+                                    return val;
+                                },
+                                _ => {
+                                    match name {
+                                        ExpressionKind::Identifier{value: name_value, ..} => {
+
+                                            env_e.lock().unwrap().insert(name_value, Arc::new(Mutex::new(val.clone())));
                                         },
                                         _ => {}
                                     }
@@ -492,7 +516,7 @@ fn eval_identifier(node: ExpressionKind, env: Arc<Mutex<Environment>>) -> Object
 
 fn eval_slot_identifier(parent: String, mut children: Vec<String>, env: Arc<Mutex<Environment>>) -> ObjectKind {
     let parent_val = env.lock().unwrap().get(parent).clone();
-    let mut parent_object = parent_val.lock().unwrap();
+    let parent_object = parent_val.lock().unwrap();
     match parent_object.clone() {
         ObjectKind::LObject{slots, ..} => {
             let mut slots = slots.clone();
@@ -554,7 +578,7 @@ fn apply_function(func: ObjectKind, args: Vec<ObjectKind>) -> ObjectKind {
 }
 
 fn extend_function_env(parameters: Vec<ExpressionKind>, env: Arc<Mutex<Environment>>, args: Vec<ObjectKind>) -> Arc<Mutex<Environment>> {
-    let mut closure = env.clone();
+    let closure = env.clone();
     let mut param_index = 0;
     for param in parameters {
         match param {
@@ -617,6 +641,31 @@ fn is_error(obj: ObjectKind) -> bool {
         },
         _ => {
             false
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_eval_program_kind_input() {
+        let token = token::Token{t_type: token::IDENT, literal: String::from("")};
+        let return_exp = Some(Box::new(ExpressionKind::Identifier{token: token.clone(), value: String::from("foobar")}));
+        let return_value = Some(Box::new(StatementKind::ExpressionStatement{token: token.clone(), expression: return_exp}));
+        let statement_vec = vec![StatementKind::ReturnStatement{token: token.clone(), return_value: return_value}];
+        let program = NodeKind::ProgramNode{statements: statement_vec};
+        let env = Environment::new();
+        Environment::lock_insert(&env, String::from("foobar"), ObjectKind::StringObj{slots: Environment::new(), value: String::from("foobar")});
+        let output = eval(program, env);
+        match output {
+            ObjectKind::StringObj{value, ..} => {
+                assert_eq!(value, String::from("foobar"));
+            },
+            _ => {
+                panic!("not an identifier.");
+            }
         }
     }
 }

@@ -4,3 +4,5 @@ let add := fun(x) {
 };
 obj.foo := 5;
 obj.adder := add;
+let spam :=. obj;
+obj.foo := 10;

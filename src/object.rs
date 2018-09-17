@@ -28,42 +28,11 @@ impl ObjectKind {
         discriminant(&self) == discriminant(b)
     }
 
-    pub fn get_from_slots(self, key: String) -> ObjectKind {
-        match self {
-            ObjectKind::Integer{slots, ..} | ObjectKind::LObject{slots, ..} => {
-                let val = slots.lock().unwrap().get(key).clone();
-                return val.lock().unwrap().clone();
-            },
-            _ => {
-                panic!("not implmented");
-            }
-        }
+    pub fn deep_clone(self) -> ObjectKind {
+
+        return self.clone();
     }
 
-    fn remove_from_slots(&mut self, key: String) {
-        match self {
-            ObjectKind::Integer{slots, ..} => {
-                slots.lock().unwrap().remove(key);
-            },
-            _ => {
-                panic!("not implmented");
-            }
-        }
-    }
-
-    pub fn add_to_slots(&mut self, key: String, value: Arc<Mutex<ObjectKind>>) {
-        match self {
-            ObjectKind::Integer{slots, ..} => {
-                slots.lock().unwrap().insert(key, value);
-            },
-            ObjectKind::LObject{slots, ..} => {
-                slots.lock().unwrap().insert(key, value);
-            },
-            _ => {
-                panic!("not implmented");
-            }
-        }
-    }
 }
 
 impl fmt::Display for ObjectKind {
