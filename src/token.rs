@@ -13,7 +13,7 @@ impl fmt::Debug for TokenType {
     }
 }
 
-#[derive(Hash, Clone)]
+#[derive(Hash, Clone, Debug)]
 pub struct Token {
     pub t_type: TokenType,
     pub literal: String,

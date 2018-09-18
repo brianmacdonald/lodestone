@@ -13,14 +13,14 @@ use super::environment::Environment;
 pub fn repl() {
     let filename = "./lodestone/lobby.ldst";
     let mut f = File::open(filename).expect("file not found");
-    let mut env = Environment{store: HashMap::new()};
+    let mut env = Environment::new();
     let mut contents = String::new();
     f.read_to_string(&mut contents)
         .expect("something went wrong reading the file");
     let il = Lexer::new(contents);
     let mut ip = Parser::new(il);
     let iprogram = ip.parse_program();
-    let boxed_env = Arc::new(Mutex::new(env));;
+    let boxed_env = env;
     eval(iprogram, boxed_env.clone());
 
     let mut input = String::new();

@@ -41,7 +41,7 @@ impl NodeKind {
     }
 }
 
-#[derive(Hash, Clone)]
+#[derive(Hash, Clone, Debug)]
 pub enum ExpressionKind {
     Identifier{token: token::Token, value: String},
     SlotIdentifer{token: token::Token, parent: Option<Box<ExpressionKind>>, child: Option<Box<ExpressionKind>>, value: String},
@@ -261,7 +261,7 @@ impl ExpressionKind {
     }
 }
 
-#[derive(Hash, Clone)]
+#[derive(Hash, Clone, Debug)]
 pub enum StatementKind {
     LetStatement{token: token::Token, name: ExpressionKind, value: Option<Box<ExpressionKind>>}, 
     LetCloneStatement{token: token::Token, name: ExpressionKind, value: Option<Box<ExpressionKind>>},
