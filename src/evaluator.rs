@@ -7,10 +7,13 @@ use super::ast::ExpressionKind;
 
 use super::object::ObjectKind;
 use super::environment::Environment;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 use super::token;
 
-pub fn eval(node: NodeKind, env: Environment) -> ObjectKind {
+pub fn eval(node: NodeKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
 	match node {
         NodeKind::ProgramNode{statements} => {
             return eval_program(statements, env);
@@ -20,8 +23,8 @@ pub fn eval(node: NodeKind, env: Environment) -> ObjectKind {
                 StatementKind::LetStatement{name, value, ..} => {
                     match value {
                         Some(v) => {
-                            let e_env = env.clone();
-                            let val = eval(NodeKind::ExpressionNode{expressionKind: *v}, e_env);
+                            let store = env.clone();
+                            let val = eval(NodeKind::ExpressionNode{expressionKind: *v}, env);
                             match val {
                                 ObjectKind::Error{..} => {
                                     return val;
@@ -29,7 +32,7 @@ pub fn eval(node: NodeKind, env: Environment) -> ObjectKind {
                                 _ => {
                                     match name {
                                         ExpressionKind::Identifier{value: name_value, ..} => {
-                                            env.store.lock().unwrap().insert(name_value, Arc::new(Mutex::new(val)));
+                                            Environment::insert(store, name_value, val);
                                         },
                                         _ => {}
                                     }
@@ -42,8 +45,8 @@ pub fn eval(node: NodeKind, env: Environment) -> ObjectKind {
                 StatementKind::LetCloneStatement{name, value, ..} => {
                     match value {
                         Some(v) => {
-                            let e_env = env.clone();
-                            let val = eval(NodeKind::ExpressionNode{expressionKind: *v}, e_env);
+                            let store = env.clone();
+                            let val = eval(NodeKind::ExpressionNode{expressionKind: *v}, env);
                             match val {
                                 ObjectKind::Error{..} => {
                                     return val;
@@ -51,7 +54,7 @@ pub fn eval(node: NodeKind, env: Environment) -> ObjectKind {
                                 _ => {
                                     match name {
                                         ExpressionKind::Identifier{value: name_value, ..} => {
-                                            env.store.lock().unwrap().insert(name_value, Arc::new(Mutex::new(val.clone())));
+                                            Environment::insert(store, name_value, val.clone());
                                         },
                                         _ => {}
                                     }
@@ -91,6 +94,7 @@ pub fn eval(node: NodeKind, env: Environment) -> ObjectKind {
                     return eval_block_statement(statementKind, env);
                 },
                 StatementKind::SlotAssignmentStatement{slot, value, ..} => {
+                    println!("evaling slot...");
                     return eval_slot_assignment(slot, value, env);
                 },
                 _ => {
@@ -202,7 +206,7 @@ pub fn eval(node: NodeKind, env: Environment) -> ObjectKind {
     return ObjectKind::Null;
 }
 
-fn eval_program(statements: Vec<StatementKind>, env: Environment) -> ObjectKind {
+fn eval_program(statements: Vec<StatementKind>, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
 
     for s in statements {
         let s_node = NodeKind::StatementNode{statementKind: s};
@@ -298,7 +302,7 @@ fn is_truthy(obj: ObjectKind) -> bool {
     }
 }
 
-fn eval_block_statement(block: StatementKind, env: Environment) -> ObjectKind {
+fn eval_block_statement(block: StatementKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
     let mut result = ObjectKind::Error{message: String::from("block statement error")};
     match block {
         StatementKind::BlockStatement{statements, ..} => {
@@ -325,7 +329,7 @@ fn eval_block_statement(block: StatementKind, env: Environment) -> ObjectKind {
     return result.clone();
 }
 
-fn eval_slot_assignment(slot: Option<Box<ExpressionKind>>, value: Option<Box<ExpressionKind>>, env: Environment) -> ObjectKind {
+fn eval_slot_assignment(slot: Option<Box<ExpressionKind>>, value: Option<Box<ExpressionKind>>, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
     match slot {
         Some(s) => {
             let slot_expression = *s.clone();
@@ -333,9 +337,11 @@ fn eval_slot_assignment(slot: Option<Box<ExpressionKind>>, value: Option<Box<Exp
                 ExpressionKind::SlotIdentiferExpression{parent, mut children, ..} => {
                     match value {
                         Some(v) => {
-                            let e_env = env.clone();
-                            let mut first_parent = env.get(parent.clone());
-                            let mut val = eval(NodeKind::ExpressionNode{expressionKind: *v}, e_env);
+                            //let e_env = env.clone();
+                            let mut first_parent = Environment::get(env.clone(), parent.clone());
+                            //let mut first_parent = env_val.borrow_mut();;
+                            let mut val = eval(NodeKind::ExpressionNode{expressionKind: *v}, env);
+                            println!("setting child slot of {} with {} ", parent, val);
                             first_parent.set_child(&mut val, &mut children);
                             return ObjectKind::Null{};
                         },
@@ -421,7 +427,7 @@ fn eval_integer_infix_expression (operator: String, left: ObjectKind, right: Obj
     ObjectKind::Error{message: String::from("operator error")}
 }
 
-fn eval_if_expression(ie: ExpressionKind, env: Environment) -> ObjectKind {
+fn eval_if_expression(ie: ExpressionKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
     let mut env_e = env.clone();
     match ie {
         ExpressionKind::IfExpression{token, condition, consequence, alternative} => {
@@ -462,14 +468,15 @@ fn eval_if_expression(ie: ExpressionKind, env: Environment) -> ObjectKind {
 
 
 
-fn eval_identifier(node: ExpressionKind, env: Environment) -> ObjectKind {
+fn eval_identifier(node: ExpressionKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
     match node {
         ExpressionKind::Identifier{value, ..} => {
             // Design decision: we're pulling a value out of the environment here.
             //                  This basically makes its value immutable since changing
             //                  the value wont change it in the environment.
             println!("eval'ing indent {}", value);
-            let mut val = env.get(value).clone();
+            let mut val = Environment::get(env, value);
+            //let mut val = env_val.borrow_mut().clone();
             return val;
         },
         _ => {
@@ -479,8 +486,9 @@ fn eval_identifier(node: ExpressionKind, env: Environment) -> ObjectKind {
     }
 }
 
-fn eval_slot_identifier(parent: String, mut children: Vec<String>, env: Environment) -> ObjectKind {
-    let parent_val = env.get(parent).clone();
+fn eval_slot_identifier(parent: String, mut children: Vec<String>, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
+    let parent_val = Environment::get(env, parent);
+    //let parent_val = env_val.borrow();
     match parent_val.clone() {
         ObjectKind::LObject{slots, ..} => {
             let mut slots = slots.clone();
@@ -497,8 +505,9 @@ fn eval_slot_identifier(parent: String, mut children: Vec<String>, env: Environm
                 let first = children.get(0);
                 match first {
                     Some(f) => {
-                        let slot_val = slots.get(f.to_string());
-                        return slot_val;
+                        let slot_val = Environment::get(slots, f.to_string());
+                        //let slot_val = env_val.borrow();;
+                        return slot_val.clone();
                     },
                     _ => {}
                 }
@@ -509,7 +518,7 @@ fn eval_slot_identifier(parent: String, mut children: Vec<String>, env: Environm
     return ObjectKind::Null{};
 }
 
-fn eval_expressions(exps: Vec<Box<ExpressionKind>>, env: Environment) -> Vec<ObjectKind> {
+fn eval_expressions(exps: Vec<Box<ExpressionKind>>, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> Vec<ObjectKind> {
 	let mut result = Vec::new();
 
 	for e in exps {
@@ -541,7 +550,7 @@ fn apply_function(func: ObjectKind, args: Vec<ObjectKind>) -> ObjectKind {
     }
 }
 
-fn extend_function_env(parameters: Vec<ExpressionKind>, env: Environment, args: Vec<ObjectKind>) -> Environment {
+fn extend_function_env(parameters: Vec<ExpressionKind>, env: Rc<RefCell<HashMap<String, ObjectKind>>>, args: Vec<ObjectKind>) -> Rc<RefCell<HashMap<String, ObjectKind>>> {
     let closure = env.clone();
     let mut param_index = 0;
     for param in parameters {
@@ -549,7 +558,7 @@ fn extend_function_env(parameters: Vec<ExpressionKind>, env: Environment, args: 
             ExpressionKind::Identifier{value, ..} => {
                 match args.get(param_index) {
                     Some(arg) => {
-                        closure.store.lock().unwrap().insert(value, Arc::new(Mutex::new(arg.clone())));
+                        Environment::insert(closure.clone(), value, arg.clone());
                     },
                     _ => {}
                 }

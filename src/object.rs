@@ -1,7 +1,8 @@
 use std::fmt;
 use std::mem::discriminant;
-use std::sync::Arc;
-use std::sync::Mutex;
+use std::rc::Rc;
+use std::cell::RefCell;
+use std::collections::HashMap;
 
 use super::ast::StatementKind;
 use super::ast::ExpressionKind;
@@ -10,16 +11,16 @@ use super::environment::Environment;
 
 #[derive(Clone, Debug)]
 pub enum ObjectKind {
-    Integer{slots: Environment, value: u32},
+    Integer{slots: Rc<RefCell<HashMap<String, ObjectKind>>>, value: u32},
     Boolean{value: bool},
     Null,
     ReturnValue{value: Box<ObjectKind>},
     Error{message: String},
-    Function{slots: Environment, parameters: Vec<ExpressionKind>, body: StatementKind, env: Environment},
-    LObject{slots: Environment},
-    StringObj{slots: Environment, value: String},
+    Function{slots: Rc<RefCell<HashMap<String, ObjectKind>>>, parameters: Vec<ExpressionKind>, body: StatementKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>},
+    LObject{slots: Rc<RefCell<HashMap<String, ObjectKind>>>},
+    StringObj{slots: Rc<RefCell<HashMap<String, ObjectKind>>>, value: String},
     BuiltIn,
-    Array{slots: Environment, elements: Vec<ObjectKind>}
+    Array{slots: Rc<RefCell<HashMap<String, ObjectKind>>>, elements: Vec<ObjectKind>}
 }
 
 impl ObjectKind {
@@ -36,7 +37,7 @@ impl ObjectKind {
     pub fn get(self, key: String) -> ObjectKind {
         match self {
             ObjectKind::LObject{slots, ..} => {
-                return slots.get(key);
+                return Environment::get(slots, key);
             },
             _ => {}
         }
@@ -46,17 +47,19 @@ impl ObjectKind {
     pub fn set(&mut self, key: String, value: &mut ObjectKind) {
         match self {
             ObjectKind::LObject{slots, ..} => {
-                Environment::clone_insert(slots, key, value.clone());
+                Environment::insert(slots.clone(), key, value.clone());
             },
             _ => {}
         }
     }
 
     pub fn set_child(&mut self, value: &mut ObjectKind, paths: &mut Vec<String>) {
-        let first_path_vec = paths.split_off(1);
+        let first_path_vec = paths.split_off(0);
         let first = first_path_vec.get(0);
+        println!("first: option {:?}", first_path_vec);
         match first {
             Some(f) => {
+                println!("first {}", f);
                 let first_path = f.clone();
                 let child = &self.clone().get(f.clone());
                 match child {
