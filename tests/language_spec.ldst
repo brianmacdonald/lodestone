@@ -17,3 +17,4 @@ MyObject.say_hello := fun(name) {
     hello + name
 }
 assert(MyObject.say_hello("world") == "hello world");
+assert(MyObject.say_hello("from lodestone") != "hello from earth");

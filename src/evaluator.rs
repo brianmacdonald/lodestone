@@ -579,18 +579,24 @@ fn unwrap_return_value(obj: ObjectKind) -> ObjectKind {
 }
 
 fn eval_string_infix_expression (operator: String, left: ObjectKind, right: ObjectKind) -> ObjectKind {
-    if operator != "+" && operator != "==" {
+    if operator != "+" && operator != "==" && operator != "!=" {
         return ObjectKind::Error{message: format!("{} is not a valid infix operator.", operator)};
     }
     match left {
         ObjectKind::StringObj{value: l_value, ..} => {
             match right {
                 ObjectKind::StringObj{value: r_value, ..} => {
-                    if operator == "==" {
-                        return ObjectKind::Boolean{value: l_value == r_value};
-                    } else {
-                        let concat = format!("{}{}", l_value, r_value);
-                        return ObjectKind::StringObj{slots: Environment::new(), value: concat};
+                    match operator.as_ref() {
+                        "==" => {
+                            return ObjectKind::Boolean{value: l_value == r_value};
+                        },
+                        "!=" => {
+                            return ObjectKind::Boolean{value: l_value != r_value};
+                        },
+                        _ => {
+                            let concat = format!("{}{}", l_value, r_value);
+                            return ObjectKind::StringObj{slots: Environment::new(), value: concat};
+                        }
                     }
                 },
                 _ => panic!("right is not a string.")
