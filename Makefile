@@ -26,3 +26,6 @@ test-bench:
 
 watch-tests:
 	$(Q)watch -n 5 $(CARGO) test
+
+test-spec:
+	$(Q)RUST_BACKTRACE=1 time $(CARGO) run tests/language_spec.ldst

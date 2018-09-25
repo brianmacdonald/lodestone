@@ -1,5 +1,13 @@
 use super::token;
 
+const LEXER_DEBUG_ENABELD: bool = false;
+
+pub fn lexer_debug(input: String) {
+    if LEXER_DEBUG_ENABELD {
+        println!("{}", input);
+    }
+}
+
 pub struct Lexer {
     input: String,
     position: u16,
@@ -27,19 +35,19 @@ impl Lexer {
         }
         self.position = self.read_position;
         self.read_position += 1;
-        println!(
+        lexer_debug(format!(
             "p: {}, rp: {}, ch: {}",
             self.position,
             self.read_position,
             self.ch
-        );
+        ));
     }
 
     pub fn next_token(&mut self) -> token::Token {
         let tok: token::Token;
-        println!("about to test before white space: {}", self.ch);
+        lexer_debug(format!("about to test before white space: {}", self.ch));
         self.skip_whitespace();
-        println!("about to test: {}", self.ch);
+        lexer_debug(format!("about to test: {}", self.ch));
         match self.ch {
             ':' => {
                 match self.peek_char() {
@@ -192,7 +200,7 @@ impl Lexer {
                 }
             }
         }
-        println!("{}", tok.literal);
+        lexer_debug(format!("{}", tok.literal));
         self.read_char();
         tok
     }

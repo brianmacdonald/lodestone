@@ -1,6 +1,3 @@
-use std::sync::Arc;
-use std::sync::Mutex;
-
 use super::ast::NodeKind;
 use super::ast::StatementKind;
 use super::ast::ExpressionKind;
@@ -8,14 +5,9 @@ use super::ast::ExpressionKind;
 use super::builtins::eval_builtin;
 
 use super::object::ObjectKind;
-use super::environment::Environment;
-use std::rc::Rc;
-use std::cell::RefCell;
-use std::collections::HashMap;
+use super::environment::{LodeEnvironment, Environment};
 
-use super::token;
-
-pub fn eval(node: NodeKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
+pub fn eval(node: NodeKind, env: LodeEnvironment) -> ObjectKind {
 	match node {
         NodeKind::ProgramNode{statements} => {
             return eval_program(statements, env);
@@ -106,7 +98,6 @@ pub fn eval(node: NodeKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> Ob
         NodeKind::ExpressionNode{expressionKind: expression_kind} => {
             match expression_kind {
                 ExpressionKind::Identifier{..} => {
-                    println!("ident");
                     return eval_identifier(expression_kind, env);
                 },
                 ExpressionKind::SlotIdentiferExpression{parent, children, ..} => {
@@ -207,7 +198,7 @@ pub fn eval(node: NodeKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> Ob
     return ObjectKind::Null;
 }
 
-fn eval_program(statements: Vec<StatementKind>, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
+fn eval_program(statements: Vec<StatementKind>, env: LodeEnvironment) -> ObjectKind {
 
     for s in statements {
         let s_node = NodeKind::StatementNode{statementKind: s};
@@ -303,7 +294,7 @@ fn is_truthy(obj: ObjectKind) -> bool {
     }
 }
 
-fn eval_block_statement(block: StatementKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
+fn eval_block_statement(block: StatementKind, env: LodeEnvironment) -> ObjectKind {
     let mut result = ObjectKind::Error{message: String::from("block statement error")};
     match block {
         StatementKind::BlockStatement{statements, ..} => {
@@ -330,7 +321,7 @@ fn eval_block_statement(block: StatementKind, env: Rc<RefCell<HashMap<String, Ob
     return result.clone();
 }
 
-fn eval_slot_assignment(slot: Option<Box<ExpressionKind>>, value: Option<Box<ExpressionKind>>, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
+fn eval_slot_assignment(slot: Option<Box<ExpressionKind>>, value: Option<Box<ExpressionKind>>, env: LodeEnvironment) -> ObjectKind {
     match slot {
         Some(s) => {
             let slot_expression = *s.clone();
@@ -428,7 +419,7 @@ fn eval_integer_infix_expression (operator: String, left: ObjectKind, right: Obj
     ObjectKind::Error{message: String::from("operator error")}
 }
 
-fn eval_if_expression(ie: ExpressionKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
+fn eval_if_expression(ie: ExpressionKind, env: LodeEnvironment) -> ObjectKind {
     let env_e = env.clone();
     match ie {
         ExpressionKind::IfExpression{condition, consequence, alternative, ..} => {
@@ -467,7 +458,7 @@ fn eval_if_expression(ie: ExpressionKind, env: Rc<RefCell<HashMap<String, Object
     return ObjectKind::Null;
 }
 
-fn eval_identifier(node: ExpressionKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
+fn eval_identifier(node: ExpressionKind, env: LodeEnvironment) -> ObjectKind {
     match node {
         ExpressionKind::Identifier{value, ..} => {
             // Design decision: we're pulling a value out of the environment here.
@@ -485,17 +476,15 @@ fn eval_identifier(node: ExpressionKind, env: Rc<RefCell<HashMap<String, ObjectK
                 },
                 _ => {}
             }
-            //let mut val = env_val.borrow_mut().clone();
             return val;
         },
         _ => {
-            // TODO: Add builtins check here.
             return ObjectKind::Error{message: String::from("Ident not found.")};
         }
     }
 }
 
-fn eval_slot_identifier(parent: String, mut children: Vec<String>, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
+fn eval_slot_identifier(parent: String, mut children: Vec<String>, env: LodeEnvironment) -> ObjectKind {
     let parent_val = Environment::get(env, parent);
     match parent_val.clone() {
         ObjectKind::LObject{slots, ..} => {
@@ -527,7 +516,7 @@ fn eval_slot_identifier(parent: String, mut children: Vec<String>, env: Rc<RefCe
     return ObjectKind::Null{};
 }
 
-fn eval_expressions(exps: Vec<Box<ExpressionKind>>, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> Vec<ObjectKind> {
+fn eval_expressions(exps: Vec<Box<ExpressionKind>>, env: LodeEnvironment) -> Vec<ObjectKind> {
 	let mut result = Vec::new();
 
 	for e in exps {
@@ -535,8 +524,8 @@ fn eval_expressions(exps: Vec<Box<ExpressionKind>>, env: Rc<RefCell<HashMap<Stri
         let mut env = env.clone();
 		let evaluated = eval(expression_node, env);
 		match evaluated {
-            ObjectKind::Error{..} => {
-                panic!("not implmented");
+            ObjectKind::Error{message} => {
+                panic!("Uncaught Error: {}", message);
             },
             _ => {}
         }
@@ -562,7 +551,7 @@ fn apply_function(func: ObjectKind, args: Vec<ObjectKind>) -> ObjectKind {
     }
 }
 
-fn extend_function_env(parameters: Vec<ExpressionKind>, env: Rc<RefCell<HashMap<String, ObjectKind>>>, args: Vec<ObjectKind>) -> Rc<RefCell<HashMap<String, ObjectKind>>> {
+fn extend_function_env(parameters: Vec<ExpressionKind>, env: LodeEnvironment, args: Vec<ObjectKind>) -> LodeEnvironment {
     let closure = env.clone();
     let mut param_index = 0;
     for param in parameters {
@@ -590,15 +579,19 @@ fn unwrap_return_value(obj: ObjectKind) -> ObjectKind {
 }
 
 fn eval_string_infix_expression (operator: String, left: ObjectKind, right: ObjectKind) -> ObjectKind {
-    if operator != "+" {
-        return ObjectKind::Error{message: String::from("not a valid operator.")};
+    if operator != "+" && operator != "==" {
+        return ObjectKind::Error{message: format!("{} is not a valid infix operator.", operator)};
     }
     match left {
         ObjectKind::StringObj{value: l_value, ..} => {
             match right {
                 ObjectKind::StringObj{value: r_value, ..} => {
-                    let concat = format!("{}{}", l_value, r_value);
-                    return ObjectKind::StringObj{slots: Environment::new(), value: concat};
+                    if operator == "==" {
+                        return ObjectKind::Boolean{value: l_value == r_value};
+                    } else {
+                        let concat = format!("{}{}", l_value, r_value);
+                        return ObjectKind::StringObj{slots: Environment::new(), value: concat};
+                    }
                 },
                 _ => panic!("right is not a string.")
             }

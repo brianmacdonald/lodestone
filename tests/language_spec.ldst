@@ -1,0 +1,19 @@
+let MyObject :=. {};
+MyObject.property := true;
+assert(MyObject.property == true);
+assert(MyObject.property != false);
+
+let ClonedObject :=. MyObject;
+assert(ClonedObject.property == true);
+ClonedObject.second_property := 42;
+assert(ClonedObject.second_property == 42);
+
+MyObject.add := fun(x, y) { 
+    x + y
+}
+assert(MyObject.add(5, 5) == 10);
+MyObject.say_hello := fun(name) { 
+    let hello := "hello ";
+    hello + name
+}
+assert(MyObject.say_hello("world") == "hello world");

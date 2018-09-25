@@ -11,6 +11,8 @@ fn println(args: Vec<ObjectKind>) -> ObjectKind {
         Some(arg) => {
             match arg {
                 ObjectKind::StringObj{value, ..} => println!("{}", value),
+                ObjectKind::Integer{value, ..} => println!("{}", value),
+                ObjectKind::LObject{..} => println!("{}", arg),
                 _ => println!("{:?}", arg)
             }
         },

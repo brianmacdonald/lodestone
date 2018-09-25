@@ -2,27 +2,26 @@ use std::fmt;
 use std::mem::discriminant;
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::collections::HashMap;
 
 use super::ast::StatementKind;
 use super::ast::ExpressionKind;
 
-use super::environment::Environment;
+use super::environment::{LodeEnvironment, Environment};
 
 pub type BuiltinFunction = fn(Vec<ObjectKind>) -> ObjectKind;
 
 #[derive(Clone, Debug)]
 pub enum ObjectKind {
-    Integer{slots: Rc<RefCell<HashMap<String, ObjectKind>>>, value: u32},
+    Integer{slots: LodeEnvironment, value: u32},
     Boolean{value: bool},
     Null,
     ReturnValue{value: Box<ObjectKind>},
     Error{message: String},
-    Function{slots: Rc<RefCell<HashMap<String, ObjectKind>>>, parameters: Vec<ExpressionKind>, body: StatementKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>},
-    LObject{slots: Rc<RefCell<HashMap<String, ObjectKind>>>},
-    StringObj{slots: Rc<RefCell<HashMap<String, ObjectKind>>>, value: String},
+    Function{slots: LodeEnvironment, parameters: Vec<ExpressionKind>, body: StatementKind, env: LodeEnvironment},
+    LObject{slots: LodeEnvironment},
+    StringObj{slots: LodeEnvironment, value: String},
     BuiltIn{func: BuiltinFunction},
-    Array{slots: Rc<RefCell<HashMap<String, ObjectKind>>>, elements: Vec<ObjectKind>}
+    Array{slots: LodeEnvironment, elements: Vec<ObjectKind>}
 }
 
 impl ObjectKind {
@@ -110,10 +109,10 @@ impl fmt::Display for ObjectKind {
                 write!(f, "{}", value)
             },
             ObjectKind::Error{message, ..} => {
-                write!(f, "{}", message)
+                write!(f, "{{Error{}}}", message)
             },
             ObjectKind::Null => {
-                write!(f, "{}", "Null")
+                write!(f, "{}", "{Null}")
             },
             ObjectKind::StringObj{value, ..} => {
                 write!(f, "{}", value)
@@ -121,7 +120,7 @@ impl fmt::Display for ObjectKind {
             ObjectKind::LObject{..} => {
                 //let mut slots = slots.clone();
                 // write!(f, "{:#?}", slots)
-                write!(f, "{}", "LObject")
+                write!(f, "{}", "{LObject{..}}")
             },
             _ => {
                 write!(f, "{}", "display not implmented")
@@ -135,7 +134,7 @@ impl fmt::Display for ObjectKind {
 mod tests {
     use super::*;
 
-    fn unwrap_lobject_slots(lobject: ObjectKind) -> Rc<RefCell<HashMap<String, ObjectKind>>>  {
+    fn unwrap_lobject_slots(lobject: ObjectKind) -> LodeEnvironment  {
         match lobject {
             ObjectKind::LObject{slots, ..} => {
                 return slots;

@@ -1,3 +1,5 @@
+use std::env;
+
 /// mods needed to import in other files.
 mod repl;
 mod lexer;
@@ -10,6 +12,6 @@ mod object;
 mod builtins;
 
 fn main() {
-    println!("Welcome to Lodestone:");
-    repl::repl();
+    let args: Vec<String> = env::args().collect();
+    repl::repl(args.get(1));
 }

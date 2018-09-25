@@ -23,7 +23,6 @@ pub struct Parser {
     peek_token: token::Token,
 }
 
-
 impl Parser {
 
     pub fn new(lexer: lexer::Lexer) -> Parser {
@@ -185,7 +184,6 @@ impl Parser {
     pub fn parse_program(&mut self) -> NodeKind {
         let mut stmt_vec: Vec<StatementKind> = Vec::new();
         while self.cur_token.t_type != token::EOF {
-            println!("== next program token: {} ", self.cur_token.literal);
             let stmt = self.parse_statement();
             match stmt {
                 Some(x) => {
