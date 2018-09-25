@@ -112,10 +112,10 @@ impl ExpressionKind {
     }
     fn string(self) -> String {
         match self {
-            ExpressionKind::Identifier{token, value} => {
+            ExpressionKind::Identifier{value, ..} => {
                 value
             },
-            ExpressionKind::SlotIdentifer{child, parent, ..} => {
+            ExpressionKind::SlotIdentifer{..} => {
                 String::from("slot")
             },
             ExpressionKind::SlotIdentiferExpression{parent, children, ..} => {
@@ -228,7 +228,7 @@ impl ExpressionKind {
                 out.push_str(&consequence.string());
                 out
             },
-            ExpressionKind::ArrayLiteral{token, elements} => {
+            ExpressionKind::ArrayLiteral{elements, ..} => {
                 let mut out = String::from("[");
                 let elements = elements;
                 let mut eles_vec = vec![];
