@@ -13,7 +13,7 @@ use super::environment::Environment;
 pub fn repl() {
     let filename = "./lodestone/lobby.ldst";
     let mut f = File::open(filename).expect("file not found");
-    let mut env = Environment::new();
+    let env = Environment::new();
     let mut contents = String::new();
     f.read_to_string(&mut contents)
         .expect("something went wrong reading the file");
@@ -31,5 +31,5 @@ pub fn repl() {
     let mut p = Parser::new(l);
     let program = p.parse_program();
     let evaluated = eval(program, boxed_env.clone());
-    println!("You inputted: {}", evaluated);
+    println!("Return for repl is: {}", evaluated);
 }

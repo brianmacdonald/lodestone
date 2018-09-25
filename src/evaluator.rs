@@ -5,6 +5,8 @@ use super::ast::NodeKind;
 use super::ast::StatementKind;
 use super::ast::ExpressionKind;
 
+use super::builtins::eval_builtin;
+
 use super::object::ObjectKind;
 use super::environment::Environment;
 use std::rc::Rc;
@@ -54,7 +56,7 @@ pub fn eval(node: NodeKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> Ob
                                 _ => {
                                     match name {
                                         ExpressionKind::Identifier{value: name_value, ..} => {
-                                            Environment::insert(store, name_value, val.clone());
+                                            Environment::insert(store, name_value, val.deep_clone());
                                         },
                                         _ => {}
                                     }
@@ -94,7 +96,6 @@ pub fn eval(node: NodeKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> Ob
                     return eval_block_statement(statementKind, env);
                 },
                 StatementKind::SlotAssignmentStatement{slot, value, ..} => {
-                    println!("evaling slot...");
                     return eval_slot_assignment(slot, value, env);
                 },
                 _ => {
@@ -341,7 +342,6 @@ fn eval_slot_assignment(slot: Option<Box<ExpressionKind>>, value: Option<Box<Exp
                             let mut first_parent = Environment::get(env.clone(), parent.clone());
                             //let mut first_parent = env_val.borrow_mut();;
                             let mut val = eval(NodeKind::ExpressionNode{expressionKind: *v}, env);
-                            println!("setting child slot of {} with {} ", parent, val);
                             first_parent.set_child(&mut val, &mut children);
                             return ObjectKind::Null{};
                         },
@@ -372,7 +372,7 @@ fn eval_bang_operator_expression(right: ObjectKind) -> ObjectKind {
 
 fn eval_minus_prefix_operator_expression(right: ObjectKind) -> ObjectKind {	
     match right {
-        ObjectKind::Integer{slots, value} => {
+        ObjectKind::Integer{..} => {
             panic!("not implmented. need to change to sized int");
             //ObjectKind::Integer{slots: slots, value: -value}
         },
@@ -384,10 +384,11 @@ fn eval_minus_prefix_operator_expression(right: ObjectKind) -> ObjectKind {
 
 
 fn eval_integer_infix_expression (operator: String, left: ObjectKind, right: ObjectKind) -> ObjectKind {
+    
     match left {
-        ObjectKind::Integer{slots: lslots, value: lvalue} => {
+        ObjectKind::Integer{value: lvalue, ..} => {
             match right {
-                ObjectKind::Integer{slots: rslots, value: rvalue} => {
+                ObjectKind::Integer{value: rvalue, ..} => {
                     match operator.as_ref() {
                         "+" => {   
                             return ObjectKind::Integer{slots: Environment::new(), value: lvalue + rvalue};
@@ -405,7 +406,7 @@ fn eval_integer_infix_expression (operator: String, left: ObjectKind, right: Obj
                             return ObjectKind::Integer{slots: Environment::new(), value: lvalue % rvalue};
                         },
                         "<" => {
-                            return ObjectKind::Boolean{value: lvalue > rvalue};
+                            return ObjectKind::Boolean{value: lvalue < rvalue};
                         },
                         ">" => {
                             return ObjectKind::Boolean{value: lvalue > rvalue};
@@ -428,9 +429,9 @@ fn eval_integer_infix_expression (operator: String, left: ObjectKind, right: Obj
 }
 
 fn eval_if_expression(ie: ExpressionKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
-    let mut env_e = env.clone();
+    let env_e = env.clone();
     match ie {
-        ExpressionKind::IfExpression{token, condition, consequence, alternative} => {
+        ExpressionKind::IfExpression{condition, consequence, alternative, ..} => {
             match condition {
                 Some(c) => {
                     let evaluated_condition = eval(NodeKind::ExpressionNode{expressionKind:*c}, env);
@@ -466,38 +467,45 @@ fn eval_if_expression(ie: ExpressionKind, env: Rc<RefCell<HashMap<String, Object
     return ObjectKind::Null;
 }
 
-
-
 fn eval_identifier(node: ExpressionKind, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
     match node {
         ExpressionKind::Identifier{value, ..} => {
             // Design decision: we're pulling a value out of the environment here.
             //                  This basically makes its value immutable since changing
             //                  the value wont change it in the environment.
-            println!("eval'ing indent {}", value);
-            let mut val = Environment::get(env, value);
+            let mut val = Environment::get(env, value.clone());
+            match val {
+                ObjectKind::Null => {
+                    match eval_builtin(value) {
+                        Ok(func) => {
+                            return func;
+                        },
+                        _ => {}
+                    }
+                },
+                _ => {}
+            }
             //let mut val = env_val.borrow_mut().clone();
             return val;
         },
         _ => {
             // TODO: Add builtins check here.
-            ObjectKind::Error{message: String::from("Ident not found.")}
+            return ObjectKind::Error{message: String::from("Ident not found.")};
         }
     }
 }
 
 fn eval_slot_identifier(parent: String, mut children: Vec<String>, env: Rc<RefCell<HashMap<String, ObjectKind>>>) -> ObjectKind {
     let parent_val = Environment::get(env, parent);
-    //let parent_val = env_val.borrow();
     match parent_val.clone() {
         ObjectKind::LObject{slots, ..} => {
             let mut slots = slots.clone();
             if children.len() > 1 {
-                let first_vec = children.split_off(1);
-                let first = first_vec.get(0);
+                let rest_vec = children.split_off(1);
+                let first = children.get(0);
                 match first {
                     Some(f) => {
-                        return eval_slot_identifier(f.to_string(), children, slots);
+                        return eval_slot_identifier(f.to_string(), rest_vec, slots);
                     },
                     _ => {}
                 }
@@ -506,14 +514,15 @@ fn eval_slot_identifier(parent: String, mut children: Vec<String>, env: Rc<RefCe
                 match first {
                     Some(f) => {
                         let slot_val = Environment::get(slots, f.to_string());
-                        //let slot_val = env_val.borrow();;
                         return slot_val.clone();
                     },
-                    _ => {}
+                    _ => { 
+                        panic!("Slot is required to have one child.")
+                    }
                 }
             }
         },
-        _ => {}
+        _ => panic!("null pointer error!")
     }
     return ObjectKind::Null{};
 }
@@ -544,6 +553,9 @@ fn apply_function(func: ObjectKind, args: Vec<ObjectKind>) -> ObjectKind {
             let evaluated = eval(NodeKind::StatementNode{statementKind: fn_body}, extended_env.clone());
             return unwrap_return_value(evaluated);
         },
+        ObjectKind::BuiltIn{func} => {
+            return unwrap_return_value(func(args));
+        },
         _ => {
             panic!("not implmented");
         }
@@ -572,23 +584,15 @@ fn extend_function_env(parameters: Vec<ExpressionKind>, env: Rc<RefCell<HashMap<
 
 fn unwrap_return_value(obj: ObjectKind) -> ObjectKind {
 	match obj {
-        ObjectKind::ReturnValue{value} => {
-            return *value;
-        },
-        _ => {
-            return obj;
-        }
+        ObjectKind::ReturnValue{value} => *value,
+        _ => obj
     }
 }
 
 fn eval_string_infix_expression (operator: String, left: ObjectKind, right: ObjectKind) -> ObjectKind {
-    match operator != "+" {
-        true => {
-            return ObjectKind::Error{message: String::from("not a valid operator.")};
-        },
-        _ => {}
+    if operator != "+" {
+        return ObjectKind::Error{message: String::from("not a valid operator.")};
     }
-
     match left {
         ObjectKind::StringObj{value: l_value, ..} => {
             match right {
@@ -596,25 +600,17 @@ fn eval_string_infix_expression (operator: String, left: ObjectKind, right: Obje
                     let concat = format!("{}{}", l_value, r_value);
                     return ObjectKind::StringObj{slots: Environment::new(), value: concat};
                 },
-                _ => {
-                    panic!("right is not a string.");
-                }
+                _ => panic!("right is not a string.")
             }
         },
-        _ => {
-            panic!("left is not a string.");
-        }
+        _ => panic!("left is not a string.")
     }
 }
 
 fn is_error(obj: ObjectKind) -> bool {
     match obj {
-        ObjectKind::Error{..} => {
-            true
-        },
-        _ => {
-            false
-        }
+        ObjectKind::Error{..} => true,
+        _ => false
     }
 }
 
@@ -622,27 +618,166 @@ fn is_error(obj: ObjectKind) -> bool {
 mod tests {
     use super::*;
 
-/*
-    #[test]
-    fn test_eval_program_kind_input() {
-        let token = token::Token{t_type: token::IDENT, literal: String::from("")};
-        let return_exp = Some(Box::new(ExpressionKind::Identifier{token: token.clone(), value: String::from("foobar")}));
-        let return_value = Some(Box::new(StatementKind::ExpressionStatement{token: token.clone(), expression: return_exp}));
-        let statement_vec = vec![StatementKind::ReturnStatement{token: token.clone(), return_value: return_value}];
-        let program = NodeKind::ProgramNode{statements: statement_vec};
-        let env = Environment::new();
-        Environment::lock_insert(&env, String::from("foobar"), ObjectKind::StringObj{slots: Environment::new(), value: String::from("foobar")});
-        let output = eval(program, env);
-        match output {
-            ObjectKind::StringObj{value, ..} => {
-                assert_eq!(value, String::from("foobar"));
-            },
-            _ => {
-                panic!("not an identifier.");
-            }
+    fn bool_value_unwrap(obj: ObjectKind) -> bool {
+        match obj {
+            ObjectKind::Boolean{value} => value,
+            _ => panic!("cannot unwrap bool value. not a Boolean object")
         }
     }
-    */
 
+    fn error_message_unwrap(obj: ObjectKind) -> String {
+        match obj {
+            ObjectKind::Error{message} => message,
+            _ => panic!("cannot unwrap error message. not an Error object")
+        }
+    }
+
+    fn create_integer(value: u32) -> ObjectKind {
+        return ObjectKind::Integer{value: value, slots: Environment::new()};
+    }
+
+    fn create_boolean(value: bool) -> ObjectKind {
+        return ObjectKind::Boolean{value: value};
+    }
+
+    #[test]
+    fn test_bang_prefix_expression() {
+        let result = eval_prefix_expression("!".to_string(), create_boolean(false));
+        assert!(bool_value_unwrap(result));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_minus_prefix_expression() {
+        eval_prefix_expression("-".to_string(), create_integer(42));
+    }
+
+    #[test]
+    fn test_unsupported_prefix_expression() {
+        let result = eval_prefix_expression("%".to_string(), create_integer(42));
+        assert!(error_message_unwrap(result) != "".to_string());
+    }
+
+    #[test]
+    fn test_native_bool_to_boolean_object() {
+        let tests = vec![
+            (true, true, "true should return true object"),
+            (false, false, "false should return false object"),
+        ];
+        for test in tests {
+            let result = native_bool_to_boolean_object(test.0);
+            assert_eq!(bool_value_unwrap(result), test.1, "test_is_truthy: {}", test.2.to_string());
+        }
+    }
+
+    #[test]
+    fn test_is_truthy() {
+        let tests = vec![
+            (ObjectKind::Boolean{value: true}, true, "true should return false"),
+            (ObjectKind::Boolean{value: false}, false, "false should return true"),
+            (ObjectKind::Null{}, false, "null should return false"),
+            (ObjectKind::new_lobject(), false, "non-null should return false"),
+        ];
+        for test in tests {
+            let result = is_truthy(test.0);
+            assert_eq!(result, test.1, "test_is_truthy: {}", test.2.to_string());
+        }
+    }
+
+    #[test]
+    fn test_eval_operator_expression() {
+        let tests = vec![
+            (ObjectKind::Boolean{value: true}, false, "true should return false"),
+            (ObjectKind::Boolean{value: false}, true, "false should return true"),
+            (ObjectKind::Null{}, true, "null should return true"),
+            (ObjectKind::new_lobject(), false, "non-null should return false"),
+        ];
+        for test in tests {
+            let result = eval_bang_operator_expression(test.0);
+            assert_eq!(bool_value_unwrap(result), test.1, "test_eval_operator_expression: {}", test.2.to_string());
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_eval_minus_prefix_operator_expression() {
+        eval_minus_prefix_operator_expression(ObjectKind::Integer{value: 42, slots: Environment::new()});
+    }
+
+    #[test]
+    fn test_eval_integer_infix_expression() {
+        let tests = vec![
+            ("+", create_integer(9), create_integer(9), "18", "9 + 9 = 18"),
+            ("-", create_integer(9), create_integer(9), "0", "9 - 9 = 0"),
+            ("*", create_integer(9), create_integer(9), "81", "9 * 9 = 81"),
+            ("/", create_integer(18), create_integer(9), "2", "18/9 = 2"),
+            ("%", create_integer(15), create_integer(2), "1", "15 % 2 = 1"),
+            ("<", create_integer(10), create_integer(2), "false", "10 < 2 == false"),
+            ("<", create_integer(1), create_integer(2), "true", "1 < 2 == true"),
+            (">", create_integer(10), create_integer(2), "true", "10 > 2 == true"),
+            (">", create_integer(1), create_integer(2), "false", "1 > 2 == false"),
+            ("==", create_integer(10), create_integer(9), "false", "10 == 9 = false"),
+            ("==", create_integer(10), create_integer(10), "true", "10 == 10 = true"),
+            ("!=", create_integer(10), create_integer(10), "false", "10 != 10 = false"),
+            ("!=", create_integer(10), create_integer(9), "true", "10 != 10 = true")
+        ];
+        for test in tests {
+            let result = eval_integer_infix_expression(test.0.to_string(), test.1, test.2);
+            assert_eq!(result.to_string(), test.3, "test_eval_integer_infix_expression: {}", test.4.to_string());
+        }
+    }
+
+    #[test]
+    fn test_eval_string_infix_expression_unsupported_operator() {
+        let result = eval_string_infix_expression("!".to_string(), ObjectKind::Null, ObjectKind::Null);
+        match result {
+            ObjectKind::Error{..} => assert!(true),
+            _ => assert!(false),
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_eval_string_infix_expression_null_null_objects() {
+        eval_string_infix_expression("+".to_string(), ObjectKind::Null, ObjectKind::Null);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_eval_string_infix_expression_string_null_objects() {
+        eval_string_infix_expression("+".to_string(), ObjectKind::StringObj{value: "".to_string(), slots: Environment::new()}, ObjectKind::Null);
+    }
+
+    #[test]
+    fn test_eval_string_infix_expression_string_string_objects() {
+        let result = eval_string_infix_expression("+".to_string(), 
+            ObjectKind::StringObj{value: "hello ".to_string(), slots: Environment::new()},
+            ObjectKind::StringObj{value: "world".to_string(), slots: Environment::new()});
+        assert_eq!(result.to_string(), "hello world".to_string());   
+    }
+
+    #[test]
+    fn test_unwrap_return_value() {
+        let tests = vec![
+            (ObjectKind::ReturnValue{value: Box::new(create_integer(43))}, "43", "Should unwrap return value from ReturnValue object."),
+            (create_integer(55), "55", "Should return object for non-return value objects."),
+        ];
+        for test in tests {
+            let result = unwrap_return_value(test.0);
+            assert_eq!(result.to_string(), test.1, "test_unwrap_return_value: {}", test.2);
+        }
+    }
+
+    #[test]
+    fn test_is_error() {
+        let tests = vec![
+            (ObjectKind::Error{message: "".to_string()}, true, "Error is error"),
+            (ObjectKind::Null{}, false, "Error is not error"),
+        ];
+        for test in tests {
+            let result = is_error(test.0);
+            assert_eq!(result, test.1, "test_is_error: {}", test.2);
+        }
+    }
 
 }

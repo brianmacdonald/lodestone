@@ -27,7 +27,6 @@ impl Environment {
     }
 
     pub fn insert(store: Rc<RefCell<HashMap<String, ObjectKind>>>, key: String, value: ObjectKind) {
-        println!("Inserting {} === in ==> {} for #{:p}", value, key, store);
         store.borrow_mut().insert(key, value);
     }
 

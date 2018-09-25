@@ -7,6 +7,7 @@ mod evaluator;
 mod environment;
 mod parser;
 mod object;
+mod builtins;
 
 fn main() {
     println!("Welcome to Lodestone:");

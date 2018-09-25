@@ -2,5 +2,15 @@ let obj := {};
 let add := fun(x) {
     x % 2;
 };
-obj.foo := 5;
+obj.foo := 4;
 obj.adder := add;
+let spam :=. obj;
+spam.eggs := {};
+obj.foo := 10;
+spam.eggs.foo := 100;
+spam.eggs.foo := 99;
+spam.foobar := 100;
+let foobar :=. spam;
+let bool := false;
+
+assert(1 == 1);
