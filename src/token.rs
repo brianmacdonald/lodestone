@@ -55,6 +55,7 @@ pub const LT: TokenType = TokenType { name: "<" };
 pub const GT: TokenType = TokenType { name: ">" };
 pub const EQ: TokenType = TokenType { name: "==" };
 pub const NOT_EQ: TokenType = TokenType { name: "!=" };
+pub const WITH_PROTOTYPE: TokenType = TokenType { name: "=>" };
 // Delimiters
 pub const COMMA: TokenType = TokenType { name: "," };
 pub const SEMICOLON: TokenType = TokenType { name: ";" };

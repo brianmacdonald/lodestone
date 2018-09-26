@@ -7,6 +7,8 @@ pub enum NodeKind {
     ProgramNode{statements: Vec<StatementKind>}
 }
 
+pub type ExpressionOption = Option<Box<ExpressionKind>>;
+
 impl NodeKind {
     fn token_literal(self) -> String {
         match self {
@@ -57,7 +59,8 @@ pub enum ExpressionKind {
     IntegerLiteral{token: token::Token, value: u32},
     WhileLiteral{token: token::Token, condition: Box<ExpressionKind>, consequence: Box<StatementKind>},
     ArrayLiteral{token: token::Token, elements: Vec<Box<ExpressionKind>>},
-    IndexExpression{token: token::Token, left: Box<ExpressionKind>, index: Option<Box<ExpressionKind>>}
+    IndexExpression{token: token::Token, left: Box<ExpressionKind>, index: Option<Box<ExpressionKind>>},
+    WithPrototypeLiteral{token: token::Token, extension: ExpressionOption, body: Box<StatementKind>}
 }
 
 impl ExpressionKind {
@@ -106,6 +109,9 @@ impl ExpressionKind {
                 token.literal.clone()
             },
             ExpressionKind::ObjectLiteral{token, ..} => {
+                token.literal.clone()
+            },
+            ExpressionKind::WithPrototypeLiteral{token, ..} => {
                 token.literal.clone()
             },
         }
@@ -256,6 +262,9 @@ impl ExpressionKind {
             },
             ExpressionKind::ObjectLiteral{token, ..} => {
                 String::from("ObjectLiteral")
+            },
+            ExpressionKind::WithPrototypeLiteral{..} => {
+                String::from("WithPrototype")
             }
         }
     }

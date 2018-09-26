@@ -225,7 +225,7 @@ impl Parser {
     fn peek_error(&mut self, t: token::TokenType) {
         let token = self.peek_token.clone();
         let msg = String::from(format!("expected next token to be {}, got {} instead",
-        t.name, token.t_type.name));
+            t.name, token.t_type.name));
         self.errors.push(msg);
     }
 
@@ -275,6 +275,7 @@ impl Parser {
         Some(Box::new(StatementKind::ReturnStatement { token: token, return_value: Some(Box::new(es)) } ))
     }
 
+    /// Check if expression is of different types and return statement.
     fn parse_expression_statement(&mut self) -> Option<Box<StatementKind>> {
         let token = self.cur_token.clone();
         let expression = self.parse_expression(LOWEST);

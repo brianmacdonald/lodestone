@@ -12,9 +12,20 @@ MyObject.add := fun(x, y) {
     x + y
 }
 assert(MyObject.add(5, 5) == 10);
-MyObject.say_hello := fun(name) { 
+
+MyObject.say_hello := fun(name) {
     let hello := "hello ";
     hello + name
 }
 assert(MyObject.say_hello("world") == "hello world");
 assert(MyObject.say_hello("from lodestone") != "hello from earth");
+
+let Car := {};
+Car.wheels := 5;
+Car.drive := fun() {
+    self.wheels := 10;
+    return self.wheels;
+};
+
+assert(Car.drive() == 10);
+assert(Car.wheels == 10);

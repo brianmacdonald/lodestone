@@ -154,7 +154,7 @@ pub fn eval(node: NodeKind, env: LodeEnvironment) -> ObjectKind {
                 ExpressionKind::IfExpression{..} => {
                     return eval_if_expression(expression_kind, env);
                 },
-                ExpressionKind::FunctionLiteral{token, parameters, body} => {
+                ExpressionKind::FunctionLiteral{parameters, body, ..} => {
                     return ObjectKind::Function{slots: Environment::new(), parameters: parameters, body: *body, env: env.clone()};
                 },
                 ExpressionKind::ObjectLiteral{..} => {
@@ -485,6 +485,7 @@ fn eval_identifier(node: ExpressionKind, env: LodeEnvironment) -> ObjectKind {
 }
 
 fn eval_slot_identifier(parent: String, mut children: Vec<String>, env: LodeEnvironment) -> ObjectKind {
+    let p_key = parent.clone();
     let parent_val = Environment::get(env, parent);
     match parent_val.clone() {
         ObjectKind::LObject{slots, ..} => {
@@ -503,6 +504,13 @@ fn eval_slot_identifier(parent: String, mut children: Vec<String>, env: LodeEnvi
                 match first {
                     Some(f) => {
                         let slot_val = Environment::get(slots, f.to_string());
+                        let inner_slot = slot_val.clone();
+                        match inner_slot {
+                            ObjectKind::Function{env, ..} => {
+                                Environment::insert(env, "self".to_string(), parent_val);
+                            },
+                            _ => {}
+                        }
                         return slot_val.clone();
                     },
                     _ => { 
@@ -511,7 +519,7 @@ fn eval_slot_identifier(parent: String, mut children: Vec<String>, env: LodeEnvi
                 }
             }
         },
-        _ => panic!("null pointer error!")
+        _ => panic!("null pointer error! {}' is not an lobject.", p_key)
     }
     return ObjectKind::Null{};
 }
