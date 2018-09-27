@@ -15,10 +15,10 @@ MyObject ::=. Object                # Clones an object as immutable.
 MyObject.immutable == true          # returns `true`
 MyObject.greeting := "hello"        # throws immutable error
 Vehicle :=. Object 
-Vehicle :=. Object {                # Define the prototype of Object
+Vehicle :=. Object => {                # Define the prototype of Object
     self.wheel_count = 2
 }
-Car :=. Vehicle {                   # Define the prototype of Vehicle
+Car :=. Vehicle => {                   # Define the prototype of Vehicle
     wheel_count = 4
     add = fn(self, a, b) {
         a + b
